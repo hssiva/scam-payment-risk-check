@@ -341,3 +341,16 @@ def test_request_id_echo_follows_schema_length_limit() -> None:
     over_limit = {"request_id": "r" * (ID_MAX_LENGTH + 1)}
     assert assess(at_limit).request_id == "r" * ID_MAX_LENGTH
     assert assess(over_limit).request_id is None
+
+
+def test_r07_young_new_payee_high_value_holds() -> None:
+    # cust-009's typical payment is large, so the amount is not unusual for them (no R05).
+    response = assess(raw_request("cust-009", YOUNG, money(POLICY.high_value_amount)))
+    assert response.decision is Decision.HOLD
+    assert codes(response) == ["R06_YOUNG_PAYEE_ACCOUNT", "R07_YOUNG_PAYEE_HIGH_VALUE"]
+
+
+def test_r07_does_not_fire_just_below_high_value() -> None:
+    response = assess(raw_request("cust-009", YOUNG, money(POLICY.high_value_amount - CENT)))
+    assert response.decision is Decision.WARN
+    assert codes(response) == ["R06_YOUNG_PAYEE_ACCOUNT"]

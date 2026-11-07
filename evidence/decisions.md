@@ -26,3 +26,17 @@
 - Unknown customer gives `log_amount_ratio = 0` (ratio 1), and a missing payee age means not young; `data_complete=False` is handled by the abstain rule, not the model.
 - The model is cached per process (`default_runtime`), unlike policy and reference data which `assess` still loads per call when not passed in.
 - Training uses learning rate 2.0: at 0.5 the rare `remote_access_detected` coefficient had not converged after 800 epochs (1.56 vs 2.10 at convergence).
+
+## D5: Evaluation gate (P6)
+- Gate thresholds (0.90 scam catch, 0.10 genuine hold) live in `config/policy.toml` `[evaluation]` and in the `Policy` model (required keys), not in `evaluate.py`. `policy_version` was not changed because decisions are unaffected.
+- Missing-data and invalid-request scenarios have `is_scam: null`: there is no ground truth, and counting deliberate abstain HOLDs as genuine payments held would fail the friction budget by construction. They still must match their expected decision, and the abstain ones are `must_hold`.
+- A scenario that misses its label does not by itself fail the gate; only the six gates set the exit code. Mismatches are listed in the report ("Scenarios that did not match").
+- Scenario labels were written before the first run and were not changed afterwards. G04 (genuine car purchase from a new dealer) is held (score 0.7284 against `score_hold` 0.70); it stays labelled ALLOW/WARN and shows as a mismatch.
+- `expected_codes` is an optional extra field on scenarios, used for invalid-request and rule-driven cases so a scenario cannot pass for the wrong reason.
+
+## D6: R07 and the known-limitations file (P6 follow-up)
+- Hard cases the system gets wrong live in `scenarios_hard.jsonl`, outside the gates, so the gates keep measuring regressions on cases we expect to pass and the weaknesses stay visible in every report. Gate thresholds (0.90, 0.10) were not changed.
+- R07 was chosen because it addresses a real gap (high-value payment to a young account for customers with large usual payments) without new thresholds. It does not fix any of X01-X06: those need different information (payee history depth, confirmation of payee, call context), not another threshold on the existing signals.
+- Accepted cost: genuine high-value payments to accounts under 30 days old are now held (X06). Revisit if the friction budget gets tight; the thresholds involved are `young_account_days` and `high_value_amount`.
+- Side finding: before R07, S19 was held in degraded mode (fail-safe) but only warned in normal mode, i.e. the service was stricter without its model. R07 removes that inconsistency for this case.
+- S19 was added test-first: it failed gate 1 before the rule and passes after it. Existing labels were not touched.

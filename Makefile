@@ -20,7 +20,7 @@ test:
 	$(BIN)/pytest
 
 eval:
-	@echo "eval: not yet implemented"
+	$(BIN)/python -m scamcheck.evaluate
 
 verify:
 	$(BIN)/ruff check .

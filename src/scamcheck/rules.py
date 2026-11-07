@@ -117,6 +117,32 @@ def r06_young_payee_account(signals: Signals, amount: Decimal, policy: Policy) -
     return None
 
 
+def r07_young_payee_high_value(signals: Signals, amount: Decimal, policy: Policy) -> RuleHit | None:
+    """Scam proceeds go to freshly opened accounts (mules, purpose-built investment accounts).
+
+    Amount signals elsewhere are relative to the customer's usual payments, so they are quiet for
+    customers who normally pay a lot; this rule looks at the absolute amount instead.
+    """
+    age = signals.payee_account_age_days
+    if (
+        signals.new_payee
+        and age is not None
+        and age < policy.young_account_days
+        and amount >= policy.high_value_amount
+    ):
+        return RuleHit(
+            Decision.HOLD,
+            Reason(
+                code="R07_YOUNG_PAYEE_HIGH_VALUE",
+                detail=(
+                    f"High-value payment (from {policy.high_value_amount} AUD) to a new payee "
+                    f"whose account is under {policy.young_account_days} days old."
+                ),
+            ),
+        )
+    return None
+
+
 RULES: tuple[Rule, ...] = (
     r01_mule_payee,
     r02_remote_access_new_payee,
@@ -124,6 +150,7 @@ RULES: tuple[Rule, ...] = (
     r04_payee_name_mismatch,
     r05_unusual_amount,
     r06_young_payee_account,
+    r07_young_payee_high_value,
 )
 
 

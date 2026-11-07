@@ -35,3 +35,12 @@
 
 ### training (`scripts/generate_training_data.py`, `scripts/train_model.py`)
 - The generator writes 5000 SYNTHETIC labelled payments (seed 42) to `sample-data/training/training_data.csv`; its generating assumptions are in the script's header. The trainer fits by batch gradient descent (lr 2.0, L2 0.001, stops at gradient tolerance) on a seeded 80/20 split and writes the artifact with the training data hash and held-out metrics.
+
+### evaluation gate (`src/scamcheck/evaluate.py`, `sample-data/scenarios.jsonl`)
+- 39 gated SYNTHETIC labelled scenarios (`id, typology, description, request, expected_decision` (one decision or an allowed set), `must_hold`, `is_scam`, optional `expected_codes`): 19 scams, 12 genuine, 3 missing-data, 5 invalid. `is_scam` is `null` for missing-data and invalid scenarios, which are excluded from the scam-catch and genuine-friction rates.
+- `python -m scamcheck.evaluate` (`make eval`) runs every scenario through `assess`, enforces six gates, writes `evidence/eval-report.md` (no timestamps, so it only changes when results change) and exits 1 if any gate fails, 2 if it cannot run (missing scenario file, policy, reference data or model).
+- Gate thresholds (`min_scam_warn_or_hold_rate` 0.90, `max_genuine_hold_rate` 0.10) are in `config/policy.toml` under `[evaluation]`. The tamper gate edits a temporary copy of the model artifact (intercept set to -50 without updating the checksum), checks the service degrades and logs one warning, and re-runs the must-hold scenarios.
+
+### R07 and the known-limitations file
+- `R07_YOUNG_PAYEE_HIGH_VALUE` (rules.py): new payee, account age below `young_account_days`, amount at or above `high_value_amount` -> HOLD. Fraud reason: scam proceeds go to freshly opened accounts (mules, purpose-built investment accounts), and the ratio-based signals (R05, model ratio feature) are quiet for customers whose usual payments are large. It adds no new threshold; it reuses two existing policy values and is independent of the model, so it also applies in degraded mode.
+- `sample-data/scenarios_hard.jsonl` holds realistic cases the system is expected to get wrong, labelled with the correct fraud answer. `make eval` runs them and reports them under "Known limitations (non-gating)"; they cannot affect the gates or the exit code, cannot be `must_hold`, and must not reuse gated scenario ids.

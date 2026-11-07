@@ -19,3 +19,11 @@
 - If the model is missing, fails the checksum, does not match the feature list or is malformed, the service keeps deciding in `DEGRADED_RULES_ONLY` mode and logs one WARNING (logger `scamcheck.model`, message includes the error code) when the process first loads it. The model is loaded once per process, so a restart is needed to pick up a repaired or replaced model.
 - In degraded mode `risk_score` and `model_version` are null, and a payment at or above `abstain_amount` with any risk signal is held with reason `DEGRADED_FAILSAFE_HOLD`.
 - The checksum catches accidental damage and edits to the artifact alone; anyone who can rewrite both files can replace the model.
+
+### Running the evaluation gate
+- `make eval` (also part of `make verify`) rewrites `evidence/eval-report.md`; commit the report with the change that caused it. Exit codes: 0 all gates pass, 1 a gate failed, 2 evaluation could not run (scenario file, policy, reference data or model unavailable; the model must be healthy for the normal-mode run).
+- `python -m scamcheck.evaluate --scenarios PATH --report PATH` evaluates a different scenario file or writes the report elsewhere.
+
+### Known-limitation scenarios
+- `python -m scamcheck.evaluate --hard PATH` uses another known-limitation file (default `sample-data/scenarios_hard.jsonl`). The file must exist and be valid or evaluation exits 2; its results appear in the report only and never change the exit code.
+- New rule `R07_YOUNG_PAYEE_HIGH_VALUE` appears in reason codes. It is controlled by the existing `young_account_days` and `high_value_amount` policy values.

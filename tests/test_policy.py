@@ -14,6 +14,10 @@ young_account_days = 30
 score_warn = 0.35
 score_hold = 0.70
 max_amount = 1000000
+
+[evaluation]
+min_scam_warn_or_hold_rate = 0.9
+max_genuine_hold_rate = 0.1
 """
 
 
@@ -33,6 +37,8 @@ def test_real_policy_values() -> None:
     assert policy.score_warn == 0.35
     assert policy.score_hold == 0.70
     assert policy.max_amount == Decimal("1000000")
+    assert policy.evaluation.min_scam_warn_or_hold_rate == 0.90
+    assert policy.evaluation.max_genuine_hold_rate == 0.10
 
 
 def test_valid_custom_policy(tmp_path: Path) -> None:
@@ -69,6 +75,12 @@ def test_invalid_toml(tmp_path: Path) -> None:
         VALID.replace("score_warn = 0.35", "score_warn = 0.8"),  # warn >= hold
         VALID.replace("score_hold = 0.70", "score_hold = 1.5"),
         VALID.replace("max_amount = 1000000", 'max_amount = "lots"'),
+        VALID.replace("min_scam_warn_or_hold_rate = 0.9", "min_scam_warn_or_hold_rate = 0"),
+        VALID.replace("max_genuine_hold_rate = 0.1", "max_genuine_hold_rate = 1.5"),
+        VALID.replace("[evaluation]\n", "[evaluation]\nextra_gate = 1\n"),
+        VALID.replace(
+            "\n[evaluation]\nmin_scam_warn_or_hold_rate = 0.9\nmax_genuine_hold_rate = 0.1\n", ""
+        ),
     ],
 )
 def test_invalid_policy_values(tmp_path: Path, text: str) -> None:

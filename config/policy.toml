@@ -16,3 +16,10 @@ score_warn = 0.35
 score_hold = 0.70
 # Largest amount accepted by input validation.
 max_amount = 1000000
+
+# Evaluation gate thresholds (intent.md success criteria 2 and 3), used by `make eval`.
+[evaluation]
+# At least this share of scam scenarios must end in WARN or HOLD.
+min_scam_warn_or_hold_rate = 0.90
+# At most this share of genuine scenarios may end in HOLD (customer friction budget).
+max_genuine_hold_rate = 0.10

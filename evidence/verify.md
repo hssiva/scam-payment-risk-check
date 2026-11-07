@@ -24,3 +24,15 @@
 - Existing rule-focused tests in `tests/test_engine.py` now run with a neutral model (zero weights) so they still test the rules alone.
 - Held-out metrics for `risk_model_v1` (1000 payments, 150 scams, SYNTHETIC data): PR-AUC (average precision) 0.9127; at 0.50 precision 0.8626, recall 0.7533; at `score_warn` 0.35 precision 0.7987, recall 0.7933; at `score_hold` 0.70 precision 0.9794, recall 0.6333. Retraining twice gave identical coefficients.
 - `make verify` after this change: ruff check and format check clean, 304 tests passed (eval gate is still a placeholder).
+
+### evaluation gate tests and results
+- `tests/test_evaluate.py` (38): scenario file validation (coverage of the required typologies, 000xxx BSBs only, malformed files), each gate at its boundary (90% and 10% are inclusive) and in failure, tamper detection and that the real model files are never modified, deterministic report with no long identifiers, `main()` exit codes 0 (pass), 1 (gate failed, report still written) and 2 (cannot run).
+- `make eval` on the committed scenarios (see the later entry on R07 for the current figures): all six gates pass.
+- Caveat: the scenarios were written by the same author as the training-data generator and contain no scams that look completely normal, so these rates are optimistic. The genuine-friction gate has little headroom (1 of 12 held, limit 10%).
+
+### R07, known limitations and current evaluation figures
+- Tests added: `tests/test_rules.py` R07 boundaries (amount = and just below `high_value_amount`, age 29 and 30), needs a new payee with a known young account, independent of the customer's usual amount, reads both thresholds from the policy; `tests/test_engine.py` R07 end to end; `tests/test_evaluate.py` hard-file loading and validation, wrong answers in the hard file never change the exit code, hard scenarios are not counted in the gates, missing or invalid hard file exits 2.
+- Test-first evidence for R07: S19 (fake investment, high-value first payment to a 5-day-old account, customer with large usual payments) was added labelled HOLD / must-hold before the rule existed; the run failed gate 1 (S19 got WARN, score 0.5892). After R07, S19 is HOLD.
+- Effect of R07 across all 45 scenarios (gated and known-limitation), compared with R07 switched off: 4 changed. S19 WARN->HOLD (the fix); S10 and S11 were already HOLD and gain the R07 reason; X06 (genuine, same profile as S19) WARN->HOLD, the accepted cost. Nothing else moved.
+- Current `make eval`: all six gates pass with unchanged thresholds. Must-hold 14/14; scams warned or held 19/19; genuine held 1/12 (8.3%, G04); two runs identical; tampered model detected and 14/14 must-hold still held in `DEGRADED_RULES_ONLY`. Known limitations (non-gating): 0 of 6 match the correct answer (X01-X03 missed scams, X04-X06 genuine payments held).
+- `make verify`: ruff check and format check clean, 354 tests passed.

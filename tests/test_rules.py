@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from scamcheck.policy import Policy
+from scamcheck.policy import EvaluationGates, Policy
 from scamcheck.rules import (
     SEVERITY,
     any_risk_signal,
@@ -15,6 +15,7 @@ from scamcheck.rules import (
     r04_payee_name_mismatch,
     r05_unusual_amount,
     r06_young_payee_account,
+    r07_young_payee_high_value,
 )
 from scamcheck.schemas import Decision
 from scamcheck.signals import NameMatch, Signals
@@ -28,6 +29,7 @@ POLICY = Policy(
     score_warn=0.35,
     score_hold=0.70,
     max_amount=Decimal("1000000"),
+    evaluation=EvaluationGates(min_scam_warn_or_hold_rate=0.9, max_genuine_hold_rate=0.1),
 )
 SMALL = Decimal("100")
 HIGH = POLICY.high_value_amount
@@ -202,3 +204,43 @@ def test_any_risk_signal_is_false_for_clean_signals_and_boundaries() -> None:
     assert any_risk_signal(signals(amount_ratio=Decimal("4.9999")), POLICY) is False
     assert any_risk_signal(signals(payee_name_match=NameMatch.CLOSE), POLICY) is False
     assert any_risk_signal(signals(payee_account_age_days=None, amount_ratio=None), POLICY) is False
+
+
+def test_r07_young_new_payee_high_value_holds_at_both_boundaries() -> None:
+    sig = signals(new_payee=True, payee_account_age_days=29)
+    hit = r07_young_payee_high_value(sig, HIGH, POLICY)  # exactly the high-value amount
+    assert hit is not None
+    assert hit.floor is Decision.HOLD
+    assert hit.reason.code == "R07_YOUNG_PAYEE_HIGH_VALUE"
+    assert r07_young_payee_high_value(sig, HIGH - CENT, POLICY) is None  # just below
+    older = signals(new_payee=True, payee_account_age_days=30)
+    assert r07_young_payee_high_value(older, HIGH, POLICY) is None  # exactly young_account_days
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"new_payee": False, "payee_account_age_days": 1},  # payee the customer already pays
+        {"new_payee": True, "payee_account_age_days": None},  # unknown account age
+        {"new_payee": True, "payee_account_age_days": 400},  # established account
+    ],
+)
+def test_r07_needs_new_payee_and_a_known_young_account(overrides: dict[str, Any]) -> None:
+    assert r07_young_payee_high_value(signals(**overrides), HIGH * 10, POLICY) is None
+
+
+def test_r07_does_not_depend_on_the_customers_usual_amount() -> None:
+    sig = signals(new_payee=True, payee_account_age_days=5, amount_ratio=Decimal("0.5"))
+    assert r07_young_payee_high_value(sig, HIGH, POLICY) is not None
+    assert r05_unusual_amount(sig, HIGH, POLICY) is None  # the ratio-based rule stays quiet
+
+
+def test_r07_reads_both_thresholds_from_the_policy() -> None:
+    sig = signals(new_payee=True, payee_account_age_days=40)
+    assert r07_young_payee_high_value(sig, HIGH, POLICY) is None
+    looser = POLICY.model_copy(update={"young_account_days": 60})
+    assert r07_young_payee_high_value(sig, HIGH, looser) is not None
+    cheaper = POLICY.model_copy(update={"high_value_amount": Decimal("100")})
+    assert r07_young_payee_high_value(
+        signals(new_payee=True, payee_account_age_days=5), SMALL, cheaper
+    )

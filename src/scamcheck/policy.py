@@ -22,6 +22,13 @@ class PolicyError(Exception):
         self.message = message
 
 
+class EvaluationGates(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    min_scam_warn_or_hold_rate: Annotated[float, Field(gt=0, le=1)]
+    max_genuine_hold_rate: Annotated[float, Field(ge=0, lt=1)]
+
+
 class Policy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -33,6 +40,7 @@ class Policy(BaseModel):
     score_warn: Annotated[float, Field(gt=0, le=1)]
     score_hold: Annotated[float, Field(gt=0, le=1)]
     max_amount: Annotated[Decimal, Field(gt=0)]
+    evaluation: EvaluationGates
 
     @model_validator(mode="after")
     def _warn_below_hold(self) -> Policy:
