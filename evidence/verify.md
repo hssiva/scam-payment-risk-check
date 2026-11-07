@@ -1,51 +1,86 @@
 # Verification
 
-## Tests and results
+## What `make verify` runs
 
-### schemas tests (`tests/test_schemas.py`)
-- Covers one valid request, amount boundaries, 31 invalid-input cases each mapped to its error code, multi-issue determinism, non-dict input, no value leakage in issues, and `DecisionResponse` rules.
-- `make verify` run after this change: ruff check and format check clean, 50 tests passed (eval gate is still a placeholder).
+`ruff check` and `ruff format --check`, then `pytest`, then `make eval` (the evaluation gate; exit
+code 1 if any gate fails). `make verify` must pass before every commit (CLAUDE.md).
 
-### reference and signals tests
-- `tests/test_reference.py`: sample files load (10 customers, 30 payees, 3 mules, all `000xxx`, all labelled SYNTHETIC), lookups, missing file, directory-instead-of-file, 9 malformed-file cases, duplicate customer IDs, no data values in error messages, env-var directory override.
-- `tests/test_signals.py`: each signal, unknown customer, unknown payee, mule account absent from payee data, and 16 name-matching cases plus an adjustable threshold.
-- `make verify` after this change: ruff check and format check clean, 99 tests passed (eval gate is still a placeholder).
+## Actual results (latest run)
 
-### policy, rules and engine tests
-- `tests/test_policy.py` (13): real policy values, missing file, invalid TOML, 8 invalid-value cases, env override.
-- `tests/test_rules.py` (24): each rule fires at its boundary and not just below it, severity ordering, rule order, no amounts in reason text.
-- `tests/test_engine.py` (39): clean ALLOW, one test per rule through `assess`, severity ordering, abstain (unknown customer, unknown payee, below threshold, complete data), REJECT cases, fail-safe HOLD for policy/reference/unexpected errors, determinism, input not mutated. Threshold amounts are derived from the loaded policy (not literals), and tests with modified policies show that `high_value_amount`, `abstain_amount`, `max_amount` and `policy_version` really come from the policy.
-- `make verify` after this change: ruff check and format check clean, 179 tests passed (eval gate is still a placeholder).
+| Check | Result |
+|---|---|
+| `ruff check`, `ruff format --check` | clean |
+| `pytest` | **534 passed**, 1 warning (Starlette's test client suggests an `httpx2` package; not adopted, no new dependencies) |
+| Evaluation gates (39 gated scenarios) | **6 of 6 pass** (below) |
+| Known-limitation scenarios (6, non-gating) | **0 of 6** match the correct answer |
 
-### model, degraded mode and training tests
-- `tests/test_model.py` (48): committed artifact loads and records its data hash; tampered artifact, wrong/empty/missing checksum, missing model file, 4 feature-mismatch variants and 10 malformed-artifact cases all degrade with the right code; degrade logged once at WARNING; feature extraction; probability, determinism, top-2 reasons and tie-breaks.
-- `tests/test_engine_model.py` (51): score bands against policy thresholds, model-only WARN/HOLD, most severe of rules and model, degraded-mode HOLD for 8 risk signals x 3 amounts (never ALLOW), exact `abstain_amount` boundary, tamper/missing model end to end, one WARNING across 5 requests, no request data in the log.
-- `tests/test_training_scripts.py` (16): generator is seeded and reproduces the committed CSV byte for byte; trainer metrics, split and determinism; artifact round-trips through the model loader; committed artifact matches the committed data.
-- Existing rule-focused tests in `tests/test_engine.py` now run with a neutral model (zero weights) so they still test the rules alone.
-- Held-out metrics for `risk_model_v1` (1000 payments, 150 scams, SYNTHETIC data): PR-AUC (average precision) 0.9127; at 0.50 precision 0.8626, recall 0.7533; at `score_warn` 0.35 precision 0.7987, recall 0.7933; at `score_hold` 0.70 precision 0.9794, recall 0.6333. Retraining twice gave identical coefficients.
-- `make verify` after this change: ruff check and format check clean, 304 tests passed (eval gate is still a placeholder).
+Evaluation gates (`evidence/eval-report.md` has the per-scenario table):
 
-### evaluation gate tests and results
-- `tests/test_evaluate.py` (38): scenario file validation (coverage of the required typologies, 000xxx BSBs only, malformed files), each gate at its boundary (90% and 10% are inclusive) and in failure, tamper detection and that the real model files are never modified, deterministic report with no long identifiers, `main()` exit codes 0 (pass), 1 (gate failed, report still written) and 2 (cannot run).
-- `make eval` on the committed scenarios (see the later entry on R07 for the current figures): all six gates pass.
-- Caveat: the scenarios were written by the same author as the training-data generator and contain no scams that look completely normal, so these rates are optimistic. The genuine-friction gate has little headroom (1 of 12 held, limit 10%).
+| Gate | Result |
+|---|---|
+| 1. Every `must_hold` scenario is HOLD | 14/14 |
+| 2. Scams warned or held (need at least 90%) | 19/19 |
+| 3. Genuine payments held (allow at most 10%) | 1/12 (8.3%): G04, a genuine car purchase from a new payee, scored 0.7284 against the 0.70 hold line |
+| 4. Every non-REJECT decision has a reason | 34/34 |
+| 5. Two runs give identical decisions | 39/39 |
+| 6. Tampered model copy: must-hold still HOLD | tamper detected; 14/14 held in `DEGRADED_RULES_ONLY` |
 
-### R07, known limitations and current evaluation figures
-- Tests added: `tests/test_rules.py` R07 boundaries (amount = and just below `high_value_amount`, age 29 and 30), needs a new payee with a known young account, independent of the customer's usual amount, reads both thresholds from the policy; `tests/test_engine.py` R07 end to end; `tests/test_evaluate.py` hard-file loading and validation, wrong answers in the hard file never change the exit code, hard scenarios are not counted in the gates, missing or invalid hard file exits 2.
-- Test-first evidence for R07: S19 (fake investment, high-value first payment to a 5-day-old account, customer with large usual payments) was added labelled HOLD / must-hold before the rule existed; the run failed gate 1 (S19 got WARN, score 0.5892). After R07, S19 is HOLD.
-- Effect of R07 across all 45 scenarios (gated and known-limitation), compared with R07 switched off: 4 changed. S19 WARN->HOLD (the fix); S10 and S11 were already HOLD and gain the R07 reason; X06 (genuine, same profile as S19) WARN->HOLD, the accepted cost. Nothing else moved.
-- Current `make eval`: all six gates pass with unchanged thresholds. Must-hold 14/14; scams warned or held 19/19; genuine held 1/12 (8.3%, G04); two runs identical; tampered model detected and 14/14 must-hold still held in `DEGRADED_RULES_ONLY`. Known limitations (non-gating): 0 of 6 match the correct answer (X01-X03 missed scams, X04-X06 genuine payments held).
-- `make verify`: ruff check and format check clean, 354 tests passed.
+Risk model `risk_model_v1` on its held-out split (1000 payments, 150 scams, SYNTHETIC): PR-AUC (average precision) 0.9127; at 0.50 precision 0.8626 / recall 0.7533; at `score_warn` 0.35 precision 0.7987 / recall 0.7933; at `score_hold` 0.70 precision 0.9794 / recall 0.6333. Retraining twice gave identical coefficients.
 
-### API, audit, CLI and deployment tests (P7)
-- `tests/test_audit.py` (53): chain linking and the exact hash definition, verification of intact / empty chains, detection of an edited, removed, inserted, reordered, first-removed, garbage or extra-field record, masking rules, no names, full accounts or amounts in records (8 amount values, including invalid ones), unwritable path / directory / torn or corrupt tail refuse to append, 200 concurrent appends keep one valid chain, 0600 permissions, 4 processes appending to one file keep a valid chain, `read_recent`, writable probe.
-- `tests/test_engine_audit.py` (17): every request including REJECT is recorded; any audit failure gives HOLD with `AUDIT_UNAVAILABLE` (also for REJECT input and for a damaged tail), original context kept, nothing written, failure log names only the error type, `assess` writes nothing.
-- `tests/test_api.py` (35): genuine ALLOW, scam HOLD, 422 REJECT body, six unparseable-body cases, health ok and degraded (model missing, audit unwritable), audit verify and tamper detection through the endpoint, audit write failure returns HOLD, `/v1/audit` exposes no unmasked account numbers, names, BSBs or amounts, limit bounds, demo endpoint 403 when off (for any body) and works when on, `SCAMCHECK_DEMO_MODE` must be exactly `1`, scenarios endpoint has no labels, eval endpoint returns six passing gates and writes no audit records, JSON logs contain only the allowed fields and none of the request's amount, customer id, account number or payee name.
-- `tests/test_cli.py` (16), `tests/test_deployment_files.py` (6): CLI commands and exit codes; static checks on the Dockerfile, compose file, `.dockerignore` and CI workflow.
-- `make verify`: ruff check and format check clean, 480 tests passed (126 new in this step), all six evaluation gates pass.
-- Run by hand (not part of `make verify`): API on port 8010 with curl (scam S01 -> HOLD 0.9626, genuine G01 -> ALLOW 0.0137, audit verify ok, live tamper of the audit file detected at line 1 and the chain verified again after restoring it, invalid request 422, demo endpoint 403). `docker compose up --build` (host port overridden to 8011 because 8000 was in use on the test machine): image built, container healthy, runs as uid 10001, same scam/genuine results, audit chain intact after a container restart (named volume), demo mode on via environment gives degraded health and the scam is still held, no `egg-info` in the image after fixing `.dockerignore`. The GitHub Actions workflow has not been run.
+## Test inventory (534)
 
-### web UI tests (P7b)
-- `tests/test_ui.py` (35): `/` serves the page with the CSP, nosniff and referrer headers; static files served with the right types and headers and cannot escape their folder; `/docs` does not get the page CSP; no CORS headers (a cross-origin preflight is refused); `app.js` contains no `innerHTML` (nor `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval`, `new Function` and similar); no external URLs, `@import`, remote fonts, inline scripts, inline styles or inline event handlers; every form control has a label; decisions are text as well as colour; every element id the script uses exists in the page; the script calls only endpoints that exist in the OpenAPI schema (plus `/health`); `/health` reports demo mode; the static files are package data and are copied into the image.
-- Real-browser check (a scratch script driving headless Chrome over the DevTools protocol, not part of `make verify`): 25 of 25 checks passed against the running app in demo mode. Health banner NORMAL; scam S01 -> red HOLD card (score 0.9626, reasons, versions, latency); genuine G01 -> green ALLOW; invalid V01 and hand-typed malformed JSON -> grey REJECT with error codes; HTML supplied in an unknown field name and in `customer_id` rendered as text (no element created, no script ran); audit table rows and masked accounts; Verify chain OK; evaluation shows six PASS gates and 39 scenarios; demo toggle gives an amber DEGRADED banner and a rules-only decision (score n/a, `DEGRADED_RULES_ONLY`), and back to NORMAL; editing a record in the audit file makes Verify chain report BROKEN at the first bad line, and restoring the file verifies OK; no console errors, exceptions or CSP violations. Layout checked from screenshots at 1100 px and 390 px wide.
-- `make verify`: ruff check and format check clean, all tests passed (see the run recorded with the commit), all six evaluation gates pass.
+| Area | Tests | What they cover |
+|---|---|---|
+| Schemas, reference data, signals | 50 + 19 + 42 | strict validation and error codes, malformed files, name matching (same words, initials, reordered words, typos), unknown customer or payee |
+| Policy, rules, engine | 21 + 39 + 44 | thresholds from policy, each rule at its boundary, severity, abstain, fail-safe HOLD |
+| Model, engine with model, training | 48 + 51 + 16 | tampered, missing, mismatched or malformed artifact degrades; degraded mode never ALLOWs a risky high-value payment; seeded and reproducible generators |
+| Evaluation | 38 | scenario validation, each gate at its boundary and in failure, exit codes 0, 1, 2 |
+| Audit, engine audit | 53 + 17 | chain, edit, removal, insertion and reorder detected, masking, no amounts, 200 threaded and 4 multi-process appends, write failure gives HOLD |
+| API, CLI, UI | 35 + 16 + 35 | happy, 422 and degraded paths, no unmasked data, demo endpoint 403, CSP and no `innerHTML`, external-resource checks |
+| Deployment files, data generators, version | 6 + 3 + 1 | Dockerfile, compose, CI workflow; generators reproduce committed files |
+
+## Local, pull request and pipeline
+
+- **Local:** `make verify` (above). Not part of it, but done by hand: the API driven with curl (scam, genuine, audit verify, live tamper of the audit file); `docker compose up --build` (image builds, container healthy and non-root, same results, audit chain survives a restart, UI served with its headers); the web UI driven in headless Chrome by a scratch script (25 of 25 checks, including HTML injection attempts rendering as text and no CSP violations); a clean-clone check of the README (see the end of this file).
+- **Pull request / push:** GitHub Actions (`.github/workflows/ci.yml`) runs `make setup` and `make verify` on Python 3.12. The three runs so far (the commits that added CI and later ones) all succeeded in about 20 seconds.
+- **Pipeline (not built):** image build and scan, staging deployment, browser checks, shadow mode, canary. See `design.md`.
+
+## Known gaps
+
+- All data, labels and scenarios are synthetic and were written by the same author as the generators, so results are optimistic. The gated set has no scam that looks completely normal.
+- Six hard cases are wrong by design of the signals: three missed scams (marketplace scam with no strong signal, romance scam to a known payee, payment just under the abstain amount) and three genuine payments held (call used to verify details, trading-name mismatch, a new high-value payment to a young account, the accepted cost of R07). The friction gate has little headroom.
+- Only the direct dependencies are pinned exactly (`requirements*.txt`); transitive packages (starlette, anyio and others pip pulled in during the clean-clone Docker build) are not locked, so two builds can differ.
+- No measurement of test coverage, no load or latency testing beyond the per-request `latency_ms`, no dependency vulnerability scan.
+- Browser behaviour is checked by a scratch script, not a committed test. CI runs `make verify` only: it does not build the Docker image or start the service.
+- Audit chain limits: removal of the newest records, or a whole-file rewrite with a recomputed chain, is not detected; multi-host and network filesystems are untested.
+- No authentication to test. `make verify` leaves `evidence/eval-report.md` rewritten; commit it with the change that caused it.
+
+## Clean-clone check of the README (2026-11-07, macOS)
+
+A fresh `git clone` of this repository at `695be74` (so no `.venv`, no `audit/`, no build cache for the
+Python route) plus the then-uncommitted README and evidence notes, followed in README order:
+
+| README step | Result |
+|---|---|
+| Prerequisites | Docker 29.8.2 with Compose v5.5.0, Python 3.12.16, GNU Make 3.81 present |
+| `docker compose up --build` | cold rebuild with `--no-cache` took about 11 s; container healthy, runs as `app`; `/`, `/docs`, `/health` and `/static/app.js` all HTTP 200 |
+| Demo steps 1 to 5 (UI, demo mode off) | 8 of 8 checks: S01 red HOLD (0.9626), G01 green ALLOW, V01 grey REJECT with error codes, Verify chain `OK ... (3 records)`, evaluation six PASS gates and 39 rows, toggle not rendered, no console or CSP errors |
+| Demo step 6 (uncomment the compose line, `docker compose up --build`) | 11 of 11 checks: toggle rendered, amber DEGRADED banner, S01 still HELD with no score in `DEGRADED_RULES_ONLY`, back to NORMAL |
+| `make setup` | exit 0, about 20 s |
+| `make verify` | first attempt failed one test (below); after reverting the compose edit: exit 0, 516 passed (before the name-matching change below), six of six gates pass, `eval-report.md` byte-identical to the committed one |
+| CLI `assess`, `verify-audit`, `health`, `eval` | all work; the example output in the README matches the real output apart from `decision_id` and `latency_ms` |
+| `SCAMCHECK_DEMO_MODE=1 make run-api`, `curl` example, UI demo steps 1 to 6 | API example returns HOLD 0.9626; 11 of 11 UI checks; `verify-audit` OK afterwards |
+| README links and `make` targets | 12 relative links resolve; every named `make` target and CLI subcommand exists |
+
+Findings: (1) `make verify` fails `test_compose_builds_and_publishes_port_8000_with_demo_mode_off` if README demo step 6 has been done and not reverted, because that test guards the committed default; the README now says to revert. (2) Transitive dependencies are not pinned (see known gaps). (3) Cosmetic: `verify-audit` prints "1 records" for a single record.
+
+Differences from following the README literally: `docker compose up --build -d` (detached) so the shell was not blocked; the example request was saved in a scratch folder instead of `/tmp/request.json`; the UI steps were clicked by a scripted headless Chrome, not by hand; the clone came from the local repository (the README was not yet pushed). Not covered: Docker on Linux, Windows (not supported), cloning from GitHub. The Python route runs on Linux in GitHub Actions (`ubuntu-latest`).
+
+## Name matching and threshold change (after review)
+
+My own review found two of eight name pairs differing from what I expect: initials gave MATCH and a surname-first name gave MISMATCH. Changed on my instruction: initials and reordered words ("Smith, John", "Smith John Paul" for "John Paul Smith") are now CLOSE; MATCH needs the same words; typos are still CLOSE by similarity. The 0.80 similarity threshold moved from a default in `signals.py` into `config/policy.toml` as `name_close_threshold` (validated, required, passed to the signals by the engine); no copy of the value remains in code.
+
+- Before and after, 18 name pairs: 9 changed, all to CLOSE (initials only 4, reordered words only 4, both 1); the rest (exact, typo, `K Smith`, `Jane Doe`, `Smith Holdings`, `Pat O'Brien`) are unchanged.
+- Tests: 516 to 534. The old expectations for initials (MATCH) and `Smith John` (MISMATCH) were changed because the requirement changed, not to make them pass; new cases cover surname-first, three-word names, initials with reordering, the threshold being used, the policy key being validated, and the engine (surname-first and initials no longer raise R04; a stricter policy turns a typo into a mismatch).
+- `make verify`: clean, 534 passed, six of six gates pass. `evidence/eval-report.md` is byte-identical to before, so no scenario result changed. The evaluation set has no surname-first scenario; the engine tests cover that case.
+- `policy_version` was not bumped (still `2026.11.1`), as for R07. Decisions for some names do change, so consider bumping it when this is committed.

@@ -1,60 +1,33 @@
 # Decisions
 
-## D1: Strict typing and stable error codes for input validation
-- Strings, booleans use strict mode (no coercion of `1` to `True`, or `123` to a string); amounts accept str, int, float or Decimal.
-- Digit fields use `[0-9]` rather than `\d`, so non-ASCII digits are rejected.
-- Issue messages are fixed text per code and never include input values (no account numbers, names or amounts in responses or logs).
-- `DecisionResponse.reasons` must have at least one item (intent success criterion 4), including for `REJECT`.
+Architecture decision records. Status of all: accepted, in force in this repository.
 
-## D2: Missing reference data is explicit, not guessed
-- `amount_ratio` is `None` (not 0 or 1) when the customer is unknown, because any number would look like a real signal.
-- An unknown customer counts as `new_payee=True` (no history means the payee cannot be known); `data_complete=False` lets later steps abstain with HOLD.
-- Mule-list matching does not depend on `payees.json`, so a mule account missing from payee data is still flagged.
-- The name-match close threshold (0.80) is a parameter with a TODO to move it into `config/policy.toml` once the policy loader exists.
+## ADR-1: No LLM in the core decision path
 
-## D3: Engine behaviour choices (P4)
-- Abstain is a HOLD floor added alongside rule results, not an early exit, so the response lists every reason (e.g. abstain plus a mule hit).
-- `max_amount` now comes from policy through a pydantic validation context; `validate_request` requires it as an argument and there is no default copy of the value in code. `schemas.ID_MAX_LENGTH` is the single source for the 64-character identifier limit (previously repeated in `schemas`, `reference` and `engine`).
-- On REJECT, `request_id` is echoed only if the raw value is a string of 1-64 characters, otherwise `null`.
-- Invalid input is rejected even when reference data is down (reference is loaded after validation); if the policy cannot load, even invalid input gets a fail-safe HOLD because `max_amount` is unknown.
-- `decision_id` is a random UUID per call; decisions are deterministic, ids are not.
+- **Context.** The service must run locally with no network, give the same decision for the same input, and explain every decision (`intent.md`). LLM features are listed as out of scope.
+- **Decision.** Decisions come from seven transparent rules (R01 to R07) and a small logistic regression on seven features, trained in plain Python. Reasons are rule codes (`R*`) and the model's top two positive contributions (`M_*`). Rule, abstain, score, name-match and evaluation thresholds live in `config/policy.toml`.
+- **Consequences.** Decisions are deterministic and testable (a test runs every scenario twice and compares). No keys, services or data leave the machine. The cost is recall: the system only sees what the signals expose, and the six known-limitation cases show it (low-signal marketplace scams, romance scams to a known payee, payments structured under the abstain amount, plus genuine payments that look risky). Closing those needs new information (payee history, confirmation of payee, call context), not another threshold.
 
-## D4: Risk model and degraded mode (P5)
-- Reasons from the model are only attached when the score band is WARN or HOLD, so a clean ALLOW still reports `NO_RISK_SIGNALS`. If a band above ALLOW has no positive contribution, the reason is `M_SCORE_ELEVATED`.
-- "Risk signal" in degraded mode means any signal the model weighs: mule payee, new payee, new device, active call, remote access, name mismatch, payee account younger than `young_account_days`, or amount ratio at or above `unusual_ratio`. This is deliberately broad (fail safe), and it holds every new-payee payment of `abstain_amount` or more while the model is down.
-- The artifact stores `young_account_days` (value used at training) and the model uses that, not the live policy value, so a policy change cannot silently change what the model was trained on. Retraining picks up the policy value.
-- Unknown customer gives `log_amount_ratio = 0` (ratio 1), and a missing payee age means not young; `data_complete=False` is handled by the abstain rule, not the model.
-- The model is cached per process (`default_runtime`), unlike policy and reference data which `assess` still loads per call when not passed in.
-- Training uses learning rate 2.0: at 0.5 the rare `remote_access_detected` coefficient had not converged after 800 epochs (1.56 vs 2.10 at convergence).
+## ADR-2: Model artifact is JSON with a SHA-256 sidecar, never pickle
 
-## D5: Evaluation gate (P6)
-- Gate thresholds (0.90 scam catch, 0.10 genuine hold) live in `config/policy.toml` `[evaluation]` and in the `Policy` model (required keys), not in `evaluate.py`. `policy_version` was not changed because decisions are unaffected.
-- Missing-data and invalid-request scenarios have `is_scam: null`: there is no ground truth, and counting deliberate abstain HOLDs as genuine payments held would fail the friction budget by construction. They still must match their expected decision, and the abstain ones are `must_hold`.
-- A scenario that misses its label does not by itself fail the gate; only the six gates set the exit code. Mismatches are listed in the report ("Scenarios that did not match").
-- Scenario labels were written before the first run and were not changed afterwards. G04 (genuine car purchase from a new dealer) is held (score 0.7284 against `score_hold` 0.70); it stays labelled ALLOW/WARN and shows as a mismatch.
-- `expected_codes` is an optional extra field on scenarios, used for invalid-request and rule-driven cases so a scenario cannot pass for the wrong reason.
+- **Context.** CLAUDE.md forbids `pickle` and `eval`; loading a pickle can run arbitrary code. The model must also be checked before use.
+- **Decision.** `models/risk_model_v1.json` holds coefficients, intercept, the exact feature list, `young_account_days` (the value used in training), the training-data hash and held-out metrics. `models/risk_model_v1.sha256` holds the file's SHA-256. At load the checksum and the feature list (order included) are verified.
+- **Consequences.** The artifact is human-readable and safe to load, and training is reproducible (same data, same coefficients). Any failure degrades the service instead of crashing it (ADR-3). Limits: a checksum stored beside the artifact does not stop someone who can rewrite both (production would use signed artifacts in a registry), and the format only suits linear models.
 
-## D6: R07 and the known-limitations file (P6 follow-up)
-- Hard cases the system gets wrong live in `scenarios_hard.jsonl`, outside the gates, so the gates keep measuring regressions on cases we expect to pass and the weaknesses stay visible in every report. Gate thresholds (0.90, 0.10) were not changed.
-- R07 was chosen because it addresses a real gap (high-value payment to a young account for customers with large usual payments) without new thresholds. It does not fix any of X01-X06: those need different information (payee history depth, confirmation of payee, call context), not another threshold on the existing signals.
-- Accepted cost: genuine high-value payments to accounts under 30 days old are now held (X06). Revisit if the friction budget gets tight; the thresholds involved are `young_account_days` and `high_value_amount`.
-- Side finding: before R07, S19 was held in degraded mode (fail-safe) but only warned in normal mode, i.e. the service was stricter without its model. R07 removes that inconsistency for this case.
-- S19 was added test-first: it failed gate 1 before the rule and passes after it. Existing labels were not touched.
+## ADR-3: Fail safe: HOLD, never ALLOW, when the service cannot decide reliably
 
-## D8: Audit, API and deployment choices (P7)
-- **No amounts in the audit trail (CLAUDE.md, confirmed by the reviewer):** the P7 brief listed `amount` in the audit record, but CLAUDE.md says never to log amounts, so the record does not contain it. It keeps `customer_id`, the masked account (last three digits), the decision, reasons, versions and a `request_hash`. Amounts, customer ids, account numbers and payee names are also kept out of the stdout logs. Reason texts only quote policy thresholds, never the payment's amount.
-- `assess` stays pure and the audited path is a separate function so evaluation and tests never write audit records; the API and CLI only use the audited path.
-- When the audit cannot be written, REJECT results also become HOLD (`AUDIT_UNAVAILABLE`), as the brief says HOLD for any audit failure; the API returns 200 for that HOLD, not 422.
-- A damaged last audit line stops all appends (so all decisions HOLD) instead of silently continuing the chain: integrity over availability.
-- `/health` is 200 even when degraded so orchestration does not restart a service that is still deciding safely; the body says `degraded` and why.
-- Policy and reference data are loaded once at API startup; if they cannot be loaded the engine reloads per request and fails safe (HOLD), so the service recovers when the files are fixed. The model is loaded once per process.
-- Compose binds `127.0.0.1:8000` (no authentication), one uvicorn worker, audit on a named volume.
-- Test isolation: CLI tests detach the API's stdout log handler, which is installed process-wide when `scamcheck.api` is imported. Starlette's test client prints a deprecation warning suggesting `httpx2`; I did not add a dependency for it.
+- **Context.** An unsafe default (releasing a payment on error) is the worst failure for an intervention control. `intent.md` requires invalid input (REJECT), missing data (abstain) and a bad model artifact (degrade) to be handled and tested; the audit fail-closed rule was added in the build.
+- **Decision.** Missing customer or payee data at or above `abstain_amount` gives HOLD. If the model is unusable the mode is `DEGRADED_RULES_ONLY` and any risk signal at or above `abstain_amount` is held. Policy or reference data that cannot be loaded, and any unexpected exception, give HOLD. If the audit record cannot be written, the answer is HOLD (`AUDIT_UNAVAILABLE`), including for requests that would have been REJECT. Invalid input is REJECT (HTTP 422).
+- **Consequences.** Safe but sometimes costly: degraded mode holds every new-payee payment of 1,000 AUD or more, and a damaged audit file blocks all decisions until repaired (integrity over availability). `/health` still returns 200 when degraded. Per CLAUDE.md the audit record has no amounts (the brief had listed one) and no payee names, and the account is masked to its last three digits. Failure table: `operate.md`.
 
-## D9: Web UI choices (P7b)
-- `/health` gained `demo_mode` and `demo_model_failure` (the brief says the toggle depends on `/health` reporting demo mode). The exact-body health test was updated for the two new fields.
-- The strict CSP is applied to `/` and `/static/` only, because FastAPI's `/docs` page loads Swagger UI from a CDN and would break under `default-src 'self'`. The two other headers apply to every response.
-- The JSON box is sent exactly as typed (not parsed and re-serialised) so that invalid JSON demonstrates the REJECT path; the scenario dropdown shows ids and typologies only, never the expected labels.
-- Favicon: answered with 204 instead of shipping an icon file, to keep the page to the three requested static files.
-- The scenario list in the UI comes from `/v1/scenarios`, which lists the gated scenarios only, so the five known-limitation cases are not in the dropdown (they appear in the evaluation panel's folded section).
-- Browser behaviour was verified with a scratch DevTools-protocol script, not a committed test, because a browser is not a dependency of `make verify`. The committed tests cover the static guarantees (CSP, no `innerHTML`, no external resources, wiring).
+## ADR-4: Reference data is validated JSON files, labelled SYNTHETIC
+
+- **Context.** No real customer data, no network, and no database to run (`intent.md` constraints).
+- **Decision.** Customers, payees and mule accounts are JSON files in `sample-data/reference/`, produced by a committed seeded script and loaded with strict validation (`_note` must say SYNTHETIC, BSBs only in `000xxx`, unknown fields rejected). Unknown customers and payees are explicit: the amount ratio is `None`, the payee counts as new, and `data_complete` is false, which drives abstain.
+- **Consequences.** Simple, inspectable, reproducible (a test regenerates the files byte for byte). Not scalable, loaded at startup, and not shared across hosts. In production this becomes a managed store behind the same loader interface.
+
+## ADR-5: What we did not build, and how the evaluation stays honest
+
+- **Not built.** Authentication and authorisation; a database; streaming ingestion; real data or real confirmation of payee; case-management integration; cloud deployment and a delivery pipeline beyond `make verify` in GitHub Actions (shadow mode, champion/challenger, canary and model-risk sign-off are described in `design.md` as a proposal); off-box audit anchoring or WORM storage; multi-currency; multi-worker support for the demo switch.
+- **Evaluation discipline.** Scenario labels were written before the first run and were not changed to make a gate pass; the gate limits (90% scams caught, 10% genuine held) are not tuned. Cases the system gets wrong live in a separate non-gating file and are reported on every run. One rule (R07, a young payee account with a high-value amount gives HOLD) was added test-first (scenario S19 failed before it and passes after) and its cost is accepted and visible: genuine high-value payments to accounts under 30 days old are held (case X06).
+- **Consequences.** Anyone reading the repo can see what is demonstrated and what is not. Treat the metrics as evidence about this synthetic setup only.
