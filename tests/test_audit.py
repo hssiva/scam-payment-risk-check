@@ -1,4 +1,5 @@
 import json
+import multiprocessing
 import os
 import stat
 from concurrent.futures import ThreadPoolExecutor
@@ -20,6 +21,14 @@ from scamcheck.audit import (
     mask_account,
 )
 from scamcheck.schemas import Decision, DecisionResponse, Mode, Reason
+
+
+def fcntl_missing() -> bool:
+    try:
+        import fcntl  # noqa: F401
+    except ImportError:
+        return True
+    return False
 
 
 def response(decision: Decision = Decision.ALLOW, decision_id: str = "d-1") -> DecisionResponse:
@@ -263,6 +272,25 @@ def test_a_corrupt_last_record_makes_append_refuse(tmp_path: Path) -> None:
         handle.write("not json at all\n")
     with pytest.raises(AuditError):
         log.append(build_entry(raw_request(), response()))
+
+
+def _append_from_another_process(args: tuple[str, int, int]) -> int:
+    path, worker, count = args
+    log = AuditLog(path)
+    for i in range(count):
+        log.append(build_entry(raw_request(), response(decision_id=f"p{worker}-{i}")))
+    return count
+
+
+@pytest.mark.skipif(fcntl_missing(), reason="needs POSIX file locking")
+def test_several_processes_on_one_host_keep_the_chain_valid(tmp_path: Path) -> None:
+    path = tmp_path / "audit.jsonl"
+    jobs = [(str(path), worker, 25) for worker in range(4)]
+    with multiprocessing.get_context("spawn").Pool(4) as pool:
+        assert sum(pool.map(_append_from_another_process, jobs)) == 100
+    result = AuditLog(path).verify()
+    assert (result.ok, result.records) == (True, 100)
+    assert len({json.loads(x)["decision_id"] for x in path.read_text().splitlines()}) == 100
 
 
 def test_concurrent_appends_keep_the_chain_valid(tmp_path: Path) -> None:
