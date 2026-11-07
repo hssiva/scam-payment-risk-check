@@ -6,6 +6,7 @@ import pytest
 from scamcheck.policy import Policy
 from scamcheck.rules import (
     SEVERITY,
+    any_risk_signal,
     evaluate_rules,
     most_severe,
     r01_mule_payee,
@@ -176,3 +177,28 @@ def test_reason_text_has_no_amounts_or_identifiers() -> None:
     )
     for hit in evaluate_rules(sig, Decimal("7777.77"), POLICY):
         assert "7777" not in hit.reason.detail
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"payee_on_mule_list": True},
+        {"new_payee": True},
+        {"new_device": True},
+        {"on_active_call": True},
+        {"remote_access_detected": True},
+        {"payee_name_match": NameMatch.MISMATCH},
+        {"payee_account_age_days": 29},
+        {"amount_ratio": Decimal("5")},
+    ],
+)
+def test_any_risk_signal_detects_each_signal(overrides: dict[str, Any]) -> None:
+    assert any_risk_signal(signals(**overrides), POLICY) is True
+
+
+def test_any_risk_signal_is_false_for_clean_signals_and_boundaries() -> None:
+    assert any_risk_signal(signals(), POLICY) is False
+    assert any_risk_signal(signals(payee_account_age_days=30), POLICY) is False
+    assert any_risk_signal(signals(amount_ratio=Decimal("4.9999")), POLICY) is False
+    assert any_risk_signal(signals(payee_name_match=NameMatch.CLOSE), POLICY) is False
+    assert any_risk_signal(signals(payee_account_age_days=None, amount_ratio=None), POLICY) is False

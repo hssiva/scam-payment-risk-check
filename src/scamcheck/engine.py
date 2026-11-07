@@ -1,4 +1,8 @@
-"""Decision engine: validate -> signals -> abstain check -> rules -> decision.
+"""Decision engine: validate -> signals -> abstain check -> rules -> model -> decision.
+
+NORMAL mode: the decision is the most severe of the rule floors and the model score band.
+DEGRADED_RULES_ONLY mode (model unavailable): rules only, plus a fail-safe HOLD for any risk
+signal on a payment at or above ``abstain_amount``.
 
 Fail safe: if the engine cannot decide reliably (policy or reference data unavailable, or any
 unexpected error) it returns HOLD, never ALLOW. Reasons never contain amounts, payee names or
@@ -9,11 +13,14 @@ from __future__ import annotations
 
 import time
 import uuid
+from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
 
+from scamcheck.model import ModelRuntime, default_runtime
 from scamcheck.policy import Policy, PolicyError, load_policy
 from scamcheck.reference import ReferenceData, ReferenceDataError, load_reference
-from scamcheck.rules import evaluate_rules, most_severe
+from scamcheck.rules import any_risk_signal, evaluate_rules, most_severe
 from scamcheck.schemas import (
     ID_MAX_LENGTH,
     Decision,
@@ -24,7 +31,7 @@ from scamcheck.schemas import (
     ValidationIssue,
     validate_request,
 )
-from scamcheck.signals import build_signals
+from scamcheck.signals import Signals, build_signals
 
 UNKNOWN_POLICY_VERSION = "UNKNOWN"
 
@@ -80,8 +87,62 @@ def _reject_reasons(issues: list[ValidationIssue]) -> list[Reason]:
     ]
 
 
+@dataclass
+class _ModelOutcome:
+    floors: list[Decision] = field(default_factory=list)
+    reasons: list[Reason] = field(default_factory=list)
+    risk_score: float | None = None
+    model_version: str | None = None
+    mode: Mode = Mode.NORMAL
+
+
+def _score_band(probability: float, policy: Policy) -> Decision:
+    if probability >= policy.score_hold:
+        return Decision.HOLD
+    if probability >= policy.score_warn:
+        return Decision.WARN
+    return Decision.ALLOW
+
+
+def _degraded_outcome(signals: Signals, amount: Decimal, policy: Policy) -> _ModelOutcome:
+    """No model: fail safe by holding any risky payment at or above the abstain amount."""
+    outcome = _ModelOutcome(mode=Mode.DEGRADED_RULES_ONLY)
+    if amount >= policy.abstain_amount and any_risk_signal(signals, policy):
+        outcome.floors.append(Decision.HOLD)
+        outcome.reasons.append(
+            Reason(
+                code="DEGRADED_FAILSAFE_HOLD",
+                detail="Risk signal present while the risk model is unavailable; payment held.",
+            )
+        )
+    return outcome
+
+
+def _model_outcome(
+    runtime: ModelRuntime, signals: Signals, amount: Decimal, policy: Policy
+) -> _ModelOutcome:
+    model = runtime.model
+    if model is None:
+        return _degraded_outcome(signals, amount, policy)
+    score = model.score(signals)
+    band = _score_band(score.probability, policy)
+    reasons = score.reasons if band is not Decision.ALLOW else []
+    if band is not Decision.ALLOW and not reasons:
+        reasons = [Reason(code="M_SCORE_ELEVATED", detail="Model risk score is elevated.")]
+    return _ModelOutcome(
+        floors=[band],
+        reasons=reasons,
+        risk_score=round(score.probability, 4),
+        model_version=model.version,
+    )
+
+
 def _decide(
-    meta: _Meta, raw: dict[str, Any], policy: Policy, reference: ReferenceData | None
+    meta: _Meta,
+    raw: dict[str, Any],
+    policy: Policy,
+    reference: ReferenceData | None,
+    runtime: ModelRuntime,
 ) -> DecisionResponse:
     validated = validate_request(raw, max_amount=policy.max_amount)
     if not isinstance(validated, PaymentRequest):
@@ -107,15 +168,9 @@ def _decide(
         floors.append(hit.floor)
         reasons.append(hit.reason)
 
-    # ---------------------------------------------------------------------------------
-    # P5 HOOK: model scoring plugs in here. It should set risk_score / model_version,
-    # may add a floor (using policy.score_warn / policy.score_hold) and reasons, and set
-    # mode to DEGRADED_RULES_ONLY if the model artifact cannot be used.
-    # Until then the decision comes from rules only.
-    risk_score: float | None = None
-    model_version: str | None = None
-    mode = Mode.NORMAL
-    # ---------------------------------------------------------------------------------
+    model_outcome = _model_outcome(runtime, signals, request.amount, policy)
+    floors.extend(model_outcome.floors)
+    reasons.extend(model_outcome.reasons)
 
     decision = most_severe(floors)
     if not reasons:
@@ -125,9 +180,9 @@ def _decide(
         decision,
         reasons,
         policy.policy_version,
-        risk_score=risk_score,
-        model_version=model_version,
-        mode=mode,
+        risk_score=model_outcome.risk_score,
+        model_version=model_outcome.model_version,
+        mode=model_outcome.mode,
     )
 
 
@@ -135,11 +190,13 @@ def assess(
     raw: dict[str, Any],
     policy: Policy | None = None,
     reference: ReferenceData | None = None,
+    model: ModelRuntime | None = None,
 ) -> DecisionResponse:
     """Assess one raw payment request. Never raises.
 
-    ``policy`` and ``reference`` are loaded from disk when omitted; long-running callers should
-    load them once and pass them in.
+    ``policy`` and ``reference`` are loaded from disk when omitted (every call); ``model``
+    defaults to the process-wide runtime, loaded once. Long-running callers should load
+    everything once and pass it in.
     """
     meta = _Meta(raw)
     try:
@@ -155,7 +212,7 @@ def assess(
         )
 
     try:
-        return _decide(meta, raw, policy, reference)
+        return _decide(meta, raw, policy, reference, model or default_runtime())
     except ReferenceDataError:
         return _fail_safe(
             meta,

@@ -127,6 +127,22 @@ RULES: tuple[Rule, ...] = (
 )
 
 
+def any_risk_signal(signals: Signals, policy: Policy) -> bool:
+    """True if any signal the risk model would weigh is present (used in degraded mode)."""
+    age = signals.payee_account_age_days
+    ratio = signals.amount_ratio
+    return (
+        signals.payee_on_mule_list
+        or signals.new_payee
+        or signals.new_device
+        or signals.on_active_call
+        or signals.remote_access_detected
+        or signals.payee_name_match is NameMatch.MISMATCH
+        or (age is not None and age < policy.young_account_days)
+        or (ratio is not None and ratio >= policy.unusual_ratio)
+    )
+
+
 def evaluate_rules(signals: Signals, amount: Decimal, policy: Policy) -> list[RuleHit]:
     """Run every rule in a fixed order and return the hits."""
     hits = (rule(signals, amount, policy) for rule in RULES)

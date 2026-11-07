@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from scamcheck import engine
-from scamcheck.engine import assess
+from scamcheck.model import ModelRuntime, RiskModel
 from scamcheck.policy import POLICY_PATH_ENV, load_policy
 from scamcheck.reference import REFERENCE_DIR_ENV, load_reference
 from scamcheck.schemas import ID_MAX_LENGTH, Decision, DecisionResponse, Mode
@@ -19,6 +19,17 @@ CENT = Decimal("0.01")
 # Scenarios assume the sample customers' typical payments (150.00 and 2000.00) leave the
 # amounts below as not unusual; they only need the policy thresholds to be of the same order.
 TYPICAL_001 = REF.customer("cust-001").typical_payment_amount  # type: ignore[union-attr]
+
+
+# These tests check the rules, so they run with a neutral model (zero weights, tiny intercept)
+# that never raises the score. The real model is tested in test_engine_model.py.
+NEUTRAL_MODEL = RiskModel("neutral-test", (0.0,) * 7, -20.0, 30)
+NEUTRAL = ModelRuntime(model=NEUTRAL_MODEL)
+
+
+def assess(raw: Any, **kwargs: Any) -> DecisionResponse:
+    kwargs.setdefault("model", NEUTRAL)
+    return engine.assess(raw, **kwargs)
 
 
 def money(value: Decimal) -> str:
@@ -73,8 +84,8 @@ def test_clean_allow() -> None:
     assert codes(response) == ["NO_RISK_SIGNALS"]
     assert response.mode is Mode.NORMAL
     assert response.policy_version == "2026.11.1"
-    assert response.model_version is None
-    assert response.risk_score is None
+    assert response.model_version == "neutral-test"
+    assert response.risk_score == 0.0
     assert response.request_id == "req-1"
     assert response.latency_ms >= 0
 
