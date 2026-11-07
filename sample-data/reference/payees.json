@@ -1,0 +1,125 @@
+{
+  "_note": "SYNTHETIC - not real customers",
+  "payees": {
+    "000100-70001117": {
+      "account_age_days": 1500,
+      "name_on_account": "Jordan Examplesmith"
+    },
+    "000100-70002234": {
+      "account_age_days": 900,
+      "name_on_account": "Casey Samplewood"
+    },
+    "000100-70003351": {
+      "account_age_days": 2400,
+      "name_on_account": "Example Plumbing Pty Ltd"
+    },
+    "000100-70004468": {
+      "account_age_days": 700,
+      "name_on_account": "Taylor Testfield"
+    },
+    "000100-70005585": {
+      "account_age_days": 3100,
+      "name_on_account": "Sample Electrical Services"
+    },
+    "000100-70006702": {
+      "account_age_days": 400,
+      "name_on_account": "Morgan Placeholder"
+    },
+    "000100-70007819": {
+      "account_age_days": 1200,
+      "name_on_account": "Riley Mockton"
+    },
+    "000100-70008936": {
+      "account_age_days": 2000,
+      "name_on_account": "Example Property Management"
+    },
+    "000100-70010053": {
+      "account_age_days": 365,
+      "name_on_account": "Avery Fictional"
+    },
+    "000101-70011170": {
+      "account_age_days": 5000,
+      "name_on_account": "Sample Council Rates"
+    },
+    "000101-70012287": {
+      "account_age_days": 800,
+      "name_on_account": "Quinn Demoson"
+    },
+    "000101-70013404": {
+      "account_age_days": 4000,
+      "name_on_account": "Example Energy Retail"
+    },
+    "000101-70014521": {
+      "account_age_days": 600,
+      "name_on_account": "Skyler Synthetic"
+    },
+    "000101-70015638": {
+      "account_age_days": 1800,
+      "name_on_account": "Example Landscaping Pty Ltd"
+    },
+    "000101-70016755": {
+      "account_age_days": 950,
+      "name_on_account": "Jamie Notreal"
+    },
+    "000101-70017872": {
+      "account_age_days": 1100,
+      "name_on_account": "Drew Fakeman"
+    },
+    "000101-70018989": {
+      "account_age_days": 1300,
+      "name_on_account": "Example Tutoring Services"
+    },
+    "000101-70020106": {
+      "account_age_days": 2700,
+      "name_on_account": "Sample Motors Pty Ltd"
+    },
+    "000101-70021223": {
+      "account_age_days": 500,
+      "name_on_account": "Peyton Dummyfield"
+    },
+    "000102-70022340": {
+      "account_age_days": 2200,
+      "name_on_account": "Example Travel Pty Ltd"
+    },
+    "000102-70023457": {
+      "account_age_days": 3000,
+      "name_on_account": "Rowan Testcase"
+    },
+    "000102-70024574": {
+      "account_age_days": 3500,
+      "name_on_account": "Example Accounting Pty Ltd"
+    },
+    "000102-70025691": {
+      "account_age_days": 250,
+      "name_on_account": "Sam Mockwell"
+    },
+    "000102-70026808": {
+      "account_age_days": 1000,
+      "name_on_account": "Example Pet Care"
+    },
+    "000102-70027925": {
+      "account_age_days": 450,
+      "name_on_account": "Blake Samplestone"
+    },
+    "000102-70029042": {
+      "account_age_days": 5,
+      "name_on_account": "Invest Example Markets"
+    },
+    "000102-70030159": {
+      "account_age_days": 12,
+      "name_on_account": "Example Crypto Exchange"
+    },
+    "000102-70031276": {
+      "account_age_days": 3,
+      "name_on_account": "Robin Newaccount"
+    },
+    "000102-70032393": {
+      "account_age_days": 9,
+      "name_on_account": "Lee Quickopen"
+    },
+    "000103-70033510": {
+      "account_age_days": 30,
+      "name_on_account": "Example Trading Co"
+    }
+  }
+}

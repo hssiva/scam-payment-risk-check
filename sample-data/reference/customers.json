@@ -1,0 +1,186 @@
+{
+  "_note": "SYNTHETIC - not real customers",
+  "customers": [
+    {
+      "customer_id": "cust-001",
+      "tenure_days": 1800,
+      "typical_payment_amount": 150.0,
+      "known_payees": [
+        {
+          "bsb": "000100",
+          "account_number": "70001117"
+        },
+        {
+          "bsb": "000100",
+          "account_number": "70003351"
+        },
+        {
+          "bsb": "000100",
+          "account_number": "70008936"
+        },
+        {
+          "bsb": "000101",
+          "account_number": "70013404"
+        }
+      ]
+    },
+    {
+      "customer_id": "cust-002",
+      "tenure_days": 3200,
+      "typical_payment_amount": 420.0,
+      "known_payees": [
+        {
+          "bsb": "000100",
+          "account_number": "70002234"
+        },
+        {
+          "bsb": "000100",
+          "account_number": "70005585"
+        },
+        {
+          "bsb": "000101",
+          "account_number": "70011170"
+        },
+        {
+          "bsb": "000101",
+          "account_number": "70013404"
+        },
+        {
+          "bsb": "000102",
+          "account_number": "70024574"
+        }
+      ]
+    },
+    {
+      "customer_id": "cust-003",
+      "tenure_days": 20,
+      "typical_payment_amount": 60.0,
+      "known_payees": []
+    },
+    {
+      "customer_id": "cust-004",
+      "tenure_days": 900,
+      "typical_payment_amount": 85.5,
+      "known_payees": [
+        {
+          "bsb": "000100",
+          "account_number": "70004468"
+        },
+        {
+          "bsb": "000100",
+          "account_number": "70007819"
+        }
+      ]
+    },
+    {
+      "customer_id": "cust-005",
+      "tenure_days": 2600,
+      "typical_payment_amount": 1200.0,
+      "known_payees": [
+        {
+          "bsb": "000100",
+          "account_number": "70003351"
+        },
+        {
+          "bsb": "000100",
+          "account_number": "70008936"
+        },
+        {
+          "bsb": "000101",
+          "account_number": "70020106"
+        },
+        {
+          "bsb": "000102",
+          "account_number": "70024574"
+        }
+      ]
+    },
+    {
+      "customer_id": "cust-006",
+      "tenure_days": 400,
+      "typical_payment_amount": 250.0,
+      "known_payees": [
+        {
+          "bsb": "000100",
+          "account_number": "70006702"
+        },
+        {
+          "bsb": "000100",
+          "account_number": "70010053"
+        }
+      ]
+    },
+    {
+      "customer_id": "cust-007",
+      "tenure_days": 5100,
+      "typical_payment_amount": 95.0,
+      "known_payees": [
+        {
+          "bsb": "000101",
+          "account_number": "70011170"
+        },
+        {
+          "bsb": "000101",
+          "account_number": "70013404"
+        },
+        {
+          "bsb": "000102",
+          "account_number": "70026808"
+        }
+      ]
+    },
+    {
+      "customer_id": "cust-008",
+      "tenure_days": 150,
+      "typical_payment_amount": 500.0,
+      "known_payees": [
+        {
+          "bsb": "000101",
+          "account_number": "70012287"
+        }
+      ]
+    },
+    {
+      "customer_id": "cust-009",
+      "tenure_days": 1200,
+      "typical_payment_amount": 2000.0,
+      "known_payees": [
+        {
+          "bsb": "000101",
+          "account_number": "70014521"
+        },
+        {
+          "bsb": "000101",
+          "account_number": "70015638"
+        },
+        {
+          "bsb": "000102",
+          "account_number": "70022340"
+        }
+      ]
+    },
+    {
+      "customer_id": "cust-010",
+      "tenure_days": 700,
+      "typical_payment_amount": 300.0,
+      "known_payees": [
+        {
+          "bsb": "000101",
+          "account_number": "70016755"
+        },
+        {
+          "bsb": "000101",
+          "account_number": "70017872"
+        },
+        {
+          "bsb": "000101",
+          "account_number": "70018989"
+        },
+        {
+          "bsb": "000101",
+          "account_number": "70021223"
+        }
+      ]
+    }
+  ]
+}

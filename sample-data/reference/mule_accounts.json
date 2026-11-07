@@ -1,0 +1,17 @@
+{
+  "_note": "SYNTHETIC - not real customers",
+  "accounts": [
+    {
+      "bsb": "000102",
+      "account_number": "70031276"
+    },
+    {
+      "bsb": "000102",
+      "account_number": "70032393"
+    },
+    {
+      "bsb": "000199",
+      "account_number": "99887766"
+    }
+  ]
+}
