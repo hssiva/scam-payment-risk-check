@@ -125,7 +125,7 @@ One command runs everything CI runs: `ruff check`, `ruff format --check`, the fu
 the evaluation gate (`make eval`: 39 labelled scenarios, six gates, exit code 1 if any fails) and the
 evidence gate (`make evidence-check`: the evidence notes exist and have content, at least 3 decision
 records, Conventional Commit subjects, and the evaluation report is as recent as the code).
-At the time of writing: 610 tests pass, all six evaluation gates pass and all four evidence checks pass. Details in
+At the time of writing: 628 tests pass, all six evaluation gates pass and all four evidence checks pass. Details in
 [evidence/verify.md](evidence/verify.md); the per-scenario report is
 [evidence/eval-report.md](evidence/eval-report.md).
 

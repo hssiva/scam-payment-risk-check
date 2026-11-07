@@ -11,7 +11,7 @@ pass before every commit (CLAUDE.md).
 | Check | Result |
 |---|---|
 | `ruff check`, `ruff format --check` | clean |
-| `pytest` | **610 passed**, 1 warning (Starlette's test client suggests an `httpx2` package; not adopted, no new dependencies) |
+| `pytest` | **628 passed**, 1 warning (Starlette's test client suggests an `httpx2` package; not adopted, no new dependencies) |
 | Evaluation gates (39 gated scenarios) | **6 of 6 pass** (below) |
 | Known-limitation scenarios (6, non-gating) | **0 of 6** match the correct answer |
 | Evidence gate (`scripts/check_evidence.py`) | **4 of 4 pass** (evidence files, decision records, Conventional Commits, evaluation evidence current) |
@@ -29,14 +29,14 @@ Evaluation gates (`evidence/eval-report.md` has the per-scenario table):
 
 Risk model `risk_model_v1` on its held-out split (1000 payments, 150 scams, SYNTHETIC): PR-AUC (average precision) 0.9127; at 0.50 precision 0.8626 / recall 0.7533; at `score_warn` 0.35 precision 0.7987 / recall 0.7933; at `score_hold` 0.70 precision 0.9794 / recall 0.6333. Retraining twice gave identical coefficients.
 
-## Test inventory (610)
+## Test inventory (628)
 
 | Area | Tests | What they cover |
 |---|---|---|
 | Schemas, reference data, signals | 50 + 19 + 42 | strict validation and error codes, malformed files, name matching (same words, initials, reordered words, typos), unknown customer or payee |
 | Policy, rules, engine | 21 + 39 + 44 | thresholds from policy, each rule at its boundary, severity, abstain, fail-safe HOLD |
 | Model, engine with model, training | 48 + 51 + 16 | tampered, missing, mismatched or malformed artifact degrades; degraded mode never ALLOWs a risky high-value payment; seeded and reproducible generators |
-| Evaluation | 38 | scenario validation, each gate at its boundary and in failure, exit codes 0, 1, 2 |
+| Evaluation | 56 | scenario validation, each gate at its boundary and in failure, exit codes 0, 1, 2, the inputs fingerprint (changes on edit, add, remove, rename; ignores caches, editor files, other folders and file times) |
 | Audit, engine audit | 53 + 17 | chain, edit, removal, insertion and reorder detected, masking, no amounts, 200 threaded and 4 multi-process appends, write failure gives HOLD |
 | API, CLI, UI | 35 + 16 + 35 | happy, 422 and degraded paths, no unmasked data, demo endpoint 403, CSP and no `innerHTML`, external-resource checks |
 | Deployment files, data generators, version | 6 + 3 + 1 | Dockerfile, compose, CI workflow; generators reproduce committed files |
@@ -53,7 +53,7 @@ Risk model `risk_model_v1` on its held-out split (1000 payments, 150 scams, SYNT
 - All data, labels and scenarios are synthetic and were written by the same author as the generators, so results are optimistic. The gated set has no scam that looks completely normal.
 - Six hard cases are wrong by design of the signals: three missed scams (marketplace scam with no strong signal, romance scam to a known payee, payment just under the abstain amount) and three genuine payments held (call used to verify details, trading-name mismatch, a new high-value payment to a young account, the accepted cost of R07). The friction gate has little headroom.
 - Only the direct dependencies are pinned exactly (`requirements*.txt`); transitive packages (starlette, anyio and others pip pulled in during the clean-clone Docker build) are not locked, so two builds can differ.
-- The evidence gate checks form, not quality: line counts, heading counts, commit-subject format and commit order. Its check 4 only watches `src/`, `config/`, `models/` and `sample-data/scenarios.jsonl`; the reference data and `scenarios_hard.jsonl` also feed the evaluation report but are not watched.
+- The evidence gate checks form, not quality: line counts, heading counts, commit-subject format and commit order. Its check 4 only watches `src/`, `config/`, `models/` and `sample-data/scenarios.jsonl`; the reference data and `scenarios_hard.jsonl` are in the report's inputs fingerprint but not watched by the check.
 - No measurement of test coverage, no load or latency testing beyond the per-request `latency_ms`, no dependency vulnerability scan.
 - Browser behaviour is checked by a scratch script, not a committed test. CI runs `make verify` only: it does not build the Docker image or start the service.
 - Audit chain limits: removal of the newest records, or a whole-file rewrite with a recomputed chain, is not detected; multi-host and network filesystems are untested.
@@ -111,4 +111,4 @@ Two things behave differently from a plain reading of the checks, on purpose:
 - **Uncommitted changes.** So that `make verify` can pass before a commit (CLAUDE.md), check 4 also looks at the working tree: if source files have uncommitted changes the report must have uncommitted changes too; if the report has uncommitted changes it passes. With a clean tree (as in CI) only commits are compared.
 - **Shallow clones fail checks 3 and 4** with a clear message, instead of silently checking a truncated history. CI uses `fetch-depth: 0`.
 
-Finding: on a clean clone of the commit before the policy bump, check 4 **failed**, because `evidence/eval-report.md` was last committed in `864d6a9` and `src/` changed afterwards in `533e3af`, although the report's content had not changed (the evaluation results were identical). The bump to `policy_version` 2026.11.2 changes the report ("Policy version"), so committing the bump with the regenerated report makes check 4 pass (simulated in a throwaway clone). Consequence of the check as specified: any source commit that leaves the evaluation results unchanged also fails check 4, until `evidence/eval-report.md` is touched. A report fingerprint of the inputs (a hash of `src/`, `config/`, `models/` and the scenarios, printed in the report) would make regenerating it necessary and sufficient; that is not built.
+Finding and fix: on a clean clone of the commit before the policy bump, check 4 **failed**, because `evidence/eval-report.md` was last committed in `864d6a9` and `src/` changed afterwards in `533e3af`, although the evaluation results, and so the report, had not changed. As specified, any source commit that leaves the results unchanged would fail check 4 until the report is touched. The report now carries an **inputs fingerprint** (`- Inputs fingerprint: ...` under the model version): a SHA-256 over the evaluation's inputs (`src/`, `config/`, `models/`, `sample-data/reference/` and the scenario files actually used; not file times, `__pycache__`, `*.pyc`, `*.egg-info` or `.DS_Store`). Any change to those inputs changes the report when `make eval` regenerates it, so regenerating and committing the report is both necessary and sufficient, and check 4 stays meaningful. Demonstrated in a throwaway clone: a comment-only change under `src/` fails check 4; regenerating the report changes only the fingerprint line, and committing it passes. Remaining gap: check 4 watches `src/`, `config/`, `models/` and `sample-data/scenarios.jsonl` only, so a commit that changes only the reference data or `scenarios_hard.jsonl` changes the fingerprint (visible in the report) but is not caught by the check.

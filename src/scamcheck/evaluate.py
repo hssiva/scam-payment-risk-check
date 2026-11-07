@@ -22,12 +22,13 @@ Usage: python -m scamcheck.evaluate [--scenarios PATH] [--hard PATH] [--report P
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import shutil
 import sys
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -44,6 +45,12 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SCENARIOS = ROOT / "sample-data" / "scenarios.jsonl"
 DEFAULT_HARD = ROOT / "sample-data" / "scenarios_hard.jsonl"
 DEFAULT_REPORT = ROOT / "evidence" / "eval-report.md"
+# Everything the evaluation depends on. A hash of these files goes into the report, so the report
+# changes whenever its inputs change, even if every result is identical.
+FINGERPRINT_DIRS = ("src", "config", "models", "sample-data/reference")
+_FINGERPRINT_SKIP_DIRS = {"__pycache__"}
+_FINGERPRINT_SKIP_NAMES = {".DS_Store"}
+FINGERPRINT_CHARS = 16
 MODEL_LOGGER = "scamcheck.model"
 
 
@@ -304,6 +311,59 @@ def evaluate(
     return first, gates
 
 
+# --- inputs fingerprint --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Fingerprint:
+    digest: str  # full SHA-256 hex
+    files: int
+
+    @property
+    def short(self) -> str:
+        return self.digest[:FINGERPRINT_CHARS]
+
+
+def _fingerprint_files(root: Path) -> list[tuple[str, Path]]:
+    found: list[tuple[str, Path]] = []
+    for directory in FINGERPRINT_DIRS:
+        for path in (root / directory).rglob("*"):
+            parts = path.relative_to(root).parts
+            if any(p in _FINGERPRINT_SKIP_DIRS or p.endswith(".egg-info") for p in parts[:-1]):
+                continue
+            if (
+                path.is_file()
+                and path.name not in _FINGERPRINT_SKIP_NAMES
+                and path.suffix != ".pyc"
+            ):
+                found.append((path.relative_to(root).as_posix(), path))
+    return found
+
+
+def inputs_fingerprint(
+    root: Path = ROOT, scenario_files: Sequence[Path] = (DEFAULT_SCENARIOS, DEFAULT_HARD)
+) -> Fingerprint:
+    """SHA-256 over the evaluation's inputs: source, config, model, reference data and the
+    scenario files actually used. Independent of file times, build caches and the machine.
+
+    Each file contributes its path and the hash of its bytes, in sorted path order, so adding,
+    removing, renaming or editing any file changes the result.
+    """
+    files = _fingerprint_files(root)
+    for path in scenario_files:
+        try:
+            label = path.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            label = f"external/{path.name}"
+        files.append((label, path))
+    digest = hashlib.sha256()
+    for label, path in sorted(set(files), key=lambda item: item[0]):
+        digest.update(label.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
+    return Fingerprint(digest.hexdigest(), len(files))
+
+
 # --- report -----------------------------------------------------------------------------------
 
 
@@ -377,11 +437,21 @@ def _hard_section(hard: list[Outcome]) -> list[str]:
     return lines
 
 
+def _fingerprint_lines(fingerprint: Fingerprint | None) -> list[str]:
+    if fingerprint is None:
+        return []
+    return [
+        f"- Inputs fingerprint: `{fingerprint.short}` (SHA-256 over {fingerprint.files} files: "
+        "`src/`, `config/`, `models/`, `sample-data/reference/` and the scenario files)"
+    ]
+
+
 def render_report(
     outcomes: list[Outcome],
     gates: list[GateResult],
     policy: Policy,
     hard: list[Outcome] | None = None,
+    fingerprint: Fingerprint | None = None,
 ) -> str:
     first = outcomes[0].response
     lines = [
@@ -392,6 +462,7 @@ def render_report(
         "",
         f"- Policy version: `{policy.policy_version}`",
         f"- Model version: `{first.model_version}` (mode `{first.mode}`)",
+        *_fingerprint_lines(fingerprint),
         f"- Overall: **{'PASS' if all(g.passed for g in gates) else 'FAIL'}**",
         "",
         "## Gate results",
@@ -493,7 +564,9 @@ def main(argv: list[str] | None = None) -> int:
     outcomes, gates = evaluate(scenarios, policy, reference, runtime)
     hard = run_all(hard_scenarios, policy, reference, runtime)
     args.report.parent.mkdir(parents=True, exist_ok=True)
-    args.report.write_text(render_report(outcomes, gates, policy, hard), encoding="utf-8")
+    fingerprint = inputs_fingerprint(ROOT, (args.scenarios, args.hard))
+    report = render_report(outcomes, gates, policy, hard, fingerprint)
+    args.report.write_text(report, encoding="utf-8")
 
     for gate in gates:
         print(f"{'PASS' if gate.passed else 'FAIL'}  {gate.name}: {gate.detail}")

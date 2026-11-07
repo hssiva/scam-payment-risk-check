@@ -47,7 +47,7 @@ Everything that shapes a decision is versioned and visible: `policy_version` and
 
 ## Evidence gate
 
-`make evidence-check` (also part of `make verify` and CI) checks the evidence notes, the decision records, the commit-subject format and that `evidence/eval-report.md` is as recent as the code; see `verify.md`. If check 4 fails ("source changed in ... after the report's last change"): run `make eval` and commit `evidence/eval-report.md` with the change. If checks 3 or 4 say "shallow clone": fetch the full history (`git fetch --unshallow`; in GitHub Actions the checkout uses `fetch-depth: 0`). Use a Conventional Commit subject (`feat|fix|test|docs|chore|ci|refactor`, optional scope, `: description`).
+`make evidence-check` (also part of `make verify` and CI) checks the evidence notes, the decision records, the commit-subject format and that `evidence/eval-report.md` is as recent as the code; see `verify.md`. If check 4 fails ("source changed in ... after the report's last change"): run `make eval` and commit `evidence/eval-report.md` with the change. The report records an inputs fingerprint (a hash of `src/`, `config/`, `models/`, the reference data and the scenario files), so any change to those inputs changes the regenerated report, even when every result is the same; commit the regenerated report together with the change. If checks 3 or 4 say "shallow clone": fetch the full history (`git fetch --unshallow`; in GitHub Actions the checkout uses `fetch-depth: 0`). Use a Conventional Commit subject (`feat|fix|test|docs|chore|ci|refactor`, optional scope, `: description`).
 
 ## Local to cloud (proposal, not built)
 

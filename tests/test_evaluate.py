@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ from scamcheck import evaluate as ev
 from scamcheck.evaluate import (
     DEFAULT_HARD,
     DEFAULT_SCENARIOS,
+    Fingerprint,
     Outcome,
     Scenario,
     ScenarioError,
@@ -21,6 +23,7 @@ from scamcheck.evaluate import (
     gate_reasons,
     gate_scam_catch,
     gate_tampered_model,
+    inputs_fingerprint,
     load_hard_scenarios,
     load_scenarios,
     main,
@@ -449,3 +452,158 @@ def test_main_cannot_run_with_a_missing_or_invalid_hard_file(tmp_path: Path) -> 
     assert main(["--hard", str(tmp_path / "none.jsonl"), "--report", str(report)]) == 2
     bad = write_lines(tmp_path / "bad.jsonl", ["{not json"])
     assert main(["--hard", str(bad), "--report", str(report)]) == 2
+
+
+# --- inputs fingerprint ---------------------------------------------------------------------------
+
+
+def make_tree(root: Path) -> tuple[Path, Path]:
+    """A tiny stand-in for the repository: the fingerprinted folders plus two scenario files."""
+    for rel, text in {
+        "src/pkg/a.py": "print('a')\n",
+        "src/pkg/b.py": "print('b')\n",
+        "config/policy.toml": "x = 1\n",
+        "models/m.json": "{}\n",
+        "sample-data/reference/c.json": "[]\n",
+    }.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text)
+    scenarios = root / "sample-data" / "scenarios.jsonl"
+    hard = root / "sample-data" / "scenarios_hard.jsonl"
+    scenarios.write_text("one\n")
+    hard.write_text("two\n")
+    return scenarios, hard
+
+
+def digest(root: Path, scenarios: Path, hard: Path) -> str:
+    return inputs_fingerprint(root, (scenarios, hard)).digest
+
+
+def test_fingerprint_of_the_real_repository_is_stable_and_well_formed() -> None:
+    first, second = inputs_fingerprint(), inputs_fingerprint()
+    assert first == second
+    assert re.fullmatch(r"[0-9a-f]{64}", first.digest)
+    assert len(first.short) == 16
+    assert first.digest.startswith(first.short)
+    assert first.files >= 20
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda r: (r / "src/pkg/a.py").write_text("print('changed')\n"),
+        lambda r: (r / "config/policy.toml").write_text("x = 2\n"),
+        lambda r: (r / "models/m.json").write_text('{"a": 1}\n'),
+        lambda r: (r / "sample-data/reference/c.json").write_text("[1]\n"),
+        lambda r: (r / "src/pkg/new.py").write_text("x\n"),  # a file added
+        lambda r: (r / "src/pkg/b.py").unlink(),  # a file removed
+        lambda r: (r / "src/pkg/b.py").rename(r / "src/pkg/renamed.py"),  # same bytes, new name
+        lambda r: (r / "src/pkg/a.py").write_text((r / "src/pkg/b.py").read_text()),
+    ],
+    ids=[
+        "src edit",
+        "config edit",
+        "model edit",
+        "reference edit",
+        "file added",
+        "file removed",
+        "file renamed",
+        "content moved between files",
+    ],
+)
+def test_fingerprint_changes_when_any_input_changes(tmp_path: Path, change: Any) -> None:
+    scenarios, hard = make_tree(tmp_path)
+    before = digest(tmp_path, scenarios, hard)
+    change(tmp_path)
+    assert digest(tmp_path, scenarios, hard) != before
+
+
+def test_fingerprint_changes_when_a_scenario_file_changes(tmp_path: Path) -> None:
+    scenarios, hard = make_tree(tmp_path)
+    before = digest(tmp_path, scenarios, hard)
+    hard.write_text("two, edited\n")
+    assert digest(tmp_path, scenarios, hard) != before
+    scenarios.write_text("one, edited\n")
+    assert digest(tmp_path, scenarios, hard) != before
+
+
+def test_fingerprint_ignores_caches_editor_files_and_other_folders(tmp_path: Path) -> None:
+    scenarios, hard = make_tree(tmp_path)
+    before = digest(tmp_path, scenarios, hard)
+    for rel in (
+        "src/pkg/__pycache__/a.cpython-312.pyc",
+        "src/pkg/stray.pyc",
+        "src/scamcheck.egg-info/PKG-INFO",
+        "src/.DS_Store",
+        "models/.DS_Store",
+        "tests/test_x.py",
+        "evidence/design.md",
+        "README.md",
+        "scripts/tool.py",
+        "audit/decisions.jsonl",
+    ):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text("noise")
+    assert digest(tmp_path, scenarios, hard) == before
+
+
+def test_fingerprint_does_not_depend_on_file_times(tmp_path: Path) -> None:
+    scenarios, hard = make_tree(tmp_path)
+    before = digest(tmp_path, scenarios, hard)
+    os.utime(tmp_path / "src/pkg/a.py", (1, 1))
+    os.utime(scenarios, (2, 2))
+    assert digest(tmp_path, scenarios, hard) == before
+
+
+def test_fingerprint_is_the_same_for_an_identical_copy_in_another_place(tmp_path: Path) -> None:
+    first, second = tmp_path / "one", tmp_path / "two"
+    first.mkdir()
+    second.mkdir()
+    scenarios_a, hard_a = make_tree(first)
+    scenarios_b, hard_b = make_tree(second)
+    assert digest(first, scenarios_a, hard_a) == digest(second, scenarios_b, hard_b)
+
+
+def test_a_scenario_file_outside_the_repository_is_included_under_its_name(tmp_path: Path) -> None:
+    scenarios, hard = make_tree(tmp_path)
+    outside = tmp_path.parent / f"{tmp_path.name}-custom.jsonl"
+    outside.write_text("custom\n")
+    default = digest(tmp_path, scenarios, hard)
+    custom = inputs_fingerprint(tmp_path, (outside, hard))
+    assert custom.digest != default
+    outside.write_text("custom, edited\n")
+    assert inputs_fingerprint(tmp_path, (outside, hard)).digest != custom.digest
+
+
+def test_fingerprint_counts_the_files_it_hashed(tmp_path: Path) -> None:
+    scenarios, hard = make_tree(tmp_path)
+    assert inputs_fingerprint(tmp_path, (scenarios, hard)).files == 7
+
+
+def test_report_shows_the_fingerprint_only_when_given_one(committed: list[Scenario]) -> None:
+    runtime = ModelRuntime.from_path()
+    outcomes, gates = evaluate(committed, POLICY, REFERENCE, runtime)
+    assert "Inputs fingerprint" not in render_report(outcomes, gates, POLICY)
+    fingerprint = Fingerprint("ab" * 32, 26)
+    report = render_report(outcomes, gates, POLICY, None, fingerprint)
+    assert "- Inputs fingerprint: `abababababababab` (SHA-256 over 26 files" in report
+    assert report == render_report(outcomes, gates, POLICY, None, fingerprint)  # deterministic
+
+
+def test_main_writes_the_fingerprint_of_the_current_inputs(tmp_path: Path) -> None:
+    report = tmp_path / "report.md"
+    assert main(["--report", str(report)]) == 0
+    assert f"Inputs fingerprint: `{inputs_fingerprint().short}`" in report.read_text()
+
+
+def test_main_fingerprints_the_scenario_file_it_was_given(tmp_path: Path) -> None:
+    rows = DEFAULT_SCENARIOS.read_text().splitlines()
+    custom = write_lines(tmp_path / "custom.jsonl", [json.loads(r) for r in rows])
+    default_report, custom_report = tmp_path / "a.md", tmp_path / "b.md"
+    main(["--report", str(default_report)])
+    main(["--scenarios", str(custom), "--report", str(custom_report)])
+
+    def line(path: Path) -> str:
+        return next(x for x in path.read_text().splitlines() if "Inputs fingerprint" in x)
+
+    assert line(default_report) != line(custom_report)  # same content, different file name

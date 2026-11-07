@@ -50,7 +50,7 @@ What is built is described in the first six sections. "Production shape and CI/C
 | `engine.py` | `assess` (pure), `assess_and_record` (audited, fails closed) |
 | `audit.py` | Append-only hash-chained log, `verify()`, masking |
 | `api.py`, `static/`, `cli.py`, `health.py` | HTTP service and same-origin web UI; command line; shared health check |
-| `evaluate.py`, `sample-data/scenarios*.jsonl` | Labelled scenarios, six gates, report |
+| `evaluate.py`, `sample-data/scenarios*.jsonl` | Labelled scenarios, six gates, report (with an inputs fingerprint) |
 | `scripts/` | Seeded generators for reference and training data; model training; `check_evidence.py` (the evidence gate) |
 
 ## Trade-offs
