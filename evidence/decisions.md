@@ -40,3 +40,13 @@
 - Accepted cost: genuine high-value payments to accounts under 30 days old are now held (X06). Revisit if the friction budget gets tight; the thresholds involved are `young_account_days` and `high_value_amount`.
 - Side finding: before R07, S19 was held in degraded mode (fail-safe) but only warned in normal mode, i.e. the service was stricter without its model. R07 removes that inconsistency for this case.
 - S19 was added test-first: it failed gate 1 before the rule and passes after it. Existing labels were not touched.
+
+## D8: Audit, API and deployment choices (P7)
+- **No amounts in the audit trail (CLAUDE.md, confirmed by the reviewer):** the P7 brief listed `amount` in the audit record, but CLAUDE.md says never to log amounts, so the record does not contain it. It keeps `customer_id`, the masked account (last three digits), the decision, reasons, versions and a `request_hash`. Amounts, customer ids, account numbers and payee names are also kept out of the stdout logs. Reason texts only quote policy thresholds, never the payment's amount.
+- `assess` stays pure and the audited path is a separate function so evaluation and tests never write audit records; the API and CLI only use the audited path.
+- When the audit cannot be written, REJECT results also become HOLD (`AUDIT_UNAVAILABLE`), as the brief says HOLD for any audit failure; the API returns 200 for that HOLD, not 422.
+- A damaged last audit line stops all appends (so all decisions HOLD) instead of silently continuing the chain: integrity over availability.
+- `/health` is 200 even when degraded so orchestration does not restart a service that is still deciding safely; the body says `degraded` and why.
+- Policy and reference data are loaded once at API startup; if they cannot be loaded the engine reloads per request and fails safe (HOLD), so the service recovers when the files are fixed. The model is loaded once per process.
+- Compose binds `127.0.0.1:8000` (no authentication), one uvicorn worker, audit on a named volume.
+- Test isolation: CLI tests detach the API's stdout log handler, which is installed process-wide when `scamcheck.api` is imported. Starlette's test client prints a deprecation warning suggesting `httpx2`; I did not add a dependency for it.

@@ -27,3 +27,11 @@
 ### Known-limitation scenarios
 - `python -m scamcheck.evaluate --hard PATH` uses another known-limitation file (default `sample-data/scenarios_hard.jsonl`). The file must exist and be valid or evaluation exits 2; its results appear in the report only and never change the exit code.
 - New rule `R07_YOUNG_PAYEE_HIGH_VALUE` appears in reason codes. It is controlled by the existing `young_account_days` and `high_value_amount` policy values.
+
+### Running the service
+- One command: `docker compose up --build`, then `http://localhost:8000/health` and `/docs`. Locally: `make run-api` (single worker). Demo switch: uncomment `SCAMCHECK_DEMO_MODE: "1"` in `docker-compose.yml` (or export `SCAMCHECK_DEMO_MODE=1`); it must be exactly `1`.
+- Environment: `SCAMCHECK_AUDIT_PATH` (default `audit/decisions.jsonl`, relative to the working directory), `SCAMCHECK_POLICY_PATH`, `SCAMCHECK_REFERENCE_DIR`, `SCAMCHECK_MODEL_PATH`, `SCAMCHECK_DEMO_MODE`.
+- CLI: `scamcheck assess --file request.json`, `scamcheck eval`, `scamcheck verify-audit`, `scamcheck health` (installed by `make setup`).
+- Audit: if a write fails, every decision is HOLD with `AUDIT_UNAVAILABLE` until it is fixed. A crash mid-write can leave an incomplete last line; appends then refuse (fail closed) and `verify-audit` reports the broken line, so an operator must repair or archive the file. Keep an off-box copy of the latest `record_hash` if removal of the newest records must be detectable.
+- The demo has no authentication; compose publishes the port on `127.0.0.1` only. `/v1/eval` and `/v1/audit` are open to anyone who can reach the port.
+- CI: `.github/workflows/ci.yml` runs `make setup` and `make verify` on push and pull request.

@@ -256,9 +256,12 @@ def tampered_runtime(
         artifact["intercept"] = -50.0
         copy.write_text(json.dumps(artifact, indent=2) + "\n", encoding="utf-8")
         logger.addHandler(collector)
+        propagate = logger.propagate
+        logger.propagate = False  # the deliberate degrade must not reach service logs
         try:
             runtime = ModelRuntime.from_path(copy)
         finally:
+            logger.propagate = propagate
             logger.removeHandler(collector)
     return runtime, collector.records
 
@@ -431,6 +434,38 @@ def render_report(
     if hard:
         lines += _hard_section(hard)
     return "\n".join(lines) + "\n"
+
+
+class EvaluationUnavailable(Exception):
+    """The evaluation cannot run (scenario file, policy, reference data or model unavailable)."""
+
+
+@dataclass(frozen=True)
+class EvaluationResult:
+    outcomes: list[Outcome]
+    gates: list[GateResult]
+    hard: list[Outcome]
+    policy: Policy
+
+
+def run_evaluation(
+    scenarios_path: Path = DEFAULT_SCENARIOS, hard_path: Path = DEFAULT_HARD
+) -> EvaluationResult:
+    """Load everything and evaluate (no report is written). Used by the API."""
+    try:
+        scenarios = load_scenarios(scenarios_path)
+        hard_scenarios = load_hard_scenarios(hard_path, scenarios)
+        policy = load_policy()
+        reference = load_reference()
+    except (ScenarioError, PolicyError, ReferenceDataError) as exc:
+        raise EvaluationUnavailable(str(exc)) from exc
+    runtime = ModelRuntime.from_path()
+    if runtime.health().status != "ok":
+        raise EvaluationUnavailable(f"the risk model is unavailable ({runtime.health().reason})")
+    outcomes, gates = evaluate(scenarios, policy, reference, runtime)
+    return EvaluationResult(
+        outcomes, gates, run_all(hard_scenarios, policy, reference, runtime), policy
+    )
 
 
 # --- command line -----------------------------------------------------------------------------

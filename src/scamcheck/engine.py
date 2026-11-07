@@ -11,12 +11,14 @@ account numbers.
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
+from scamcheck.audit import AuditLog, build_entry
 from scamcheck.model import ModelRuntime, default_runtime
 from scamcheck.policy import Policy, PolicyError, load_policy
 from scamcheck.reference import ReferenceData, ReferenceDataError, load_reference
@@ -34,6 +36,7 @@ from scamcheck.schemas import (
 from scamcheck.signals import Signals, build_signals
 
 UNKNOWN_POLICY_VERSION = "UNKNOWN"
+logger = logging.getLogger(__name__)
 
 
 class _Meta:
@@ -224,3 +227,31 @@ def assess(
         return _fail_safe(
             meta, "INTERNAL_ERROR", "Unexpected error; payment held.", policy.policy_version
         )
+
+
+def assess_and_record(
+    raw: dict[str, Any],
+    audit: AuditLog,
+    policy: Policy | None = None,
+    reference: ReferenceData | None = None,
+    model: ModelRuntime | None = None,
+) -> DecisionResponse:
+    """``assess`` plus a tamper-evident audit record. Fails closed.
+
+    Every request, including rejected ones, is recorded. If the record cannot be written the
+    payment is held (reason ``AUDIT_UNAVAILABLE``, followed by the original reasons): a decision
+    that cannot be audited is never released. ``assess`` itself does not write the audit trail.
+    """
+    response = assess(raw, policy=policy, reference=reference, model=model)
+    try:
+        audit.append(build_entry(raw, response))
+    except Exception as exc:  # fail closed: any audit problem means HOLD
+        logger.error("Audit write failed (%s); decision forced to HOLD", type(exc).__name__)
+        unavailable = Reason(
+            code="AUDIT_UNAVAILABLE",
+            detail="The audit trail could not be written; payment held.",
+        )
+        return response.model_copy(
+            update={"decision": Decision.HOLD, "reasons": [unavailable, *response.reasons]}
+        )
+    return response
