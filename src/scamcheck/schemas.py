@@ -17,12 +17,15 @@ from pydantic import (
     Field,
     StrictBool,
     ValidationError,
+    ValidationInfo,
+    field_validator,
 )
+from pydantic_core import PydanticCustomError
 
-# TODO: move to config/policy.toml once the policy loader exists.
-MAX_AMOUNT = Decimal("1000000")
+# Maximum length of identifier fields (request_id, customer_id).
+ID_MAX_LENGTH = 64
 
-_Id = Annotated[str, Field(min_length=1, max_length=64, strict=True)]
+_Id = Annotated[str, Field(min_length=1, max_length=ID_MAX_LENGTH, strict=True)]
 
 
 class _Strict(BaseModel):
@@ -45,11 +48,21 @@ class PaymentRequest(_Strict):
     request_id: _Id
     timestamp: AwareDatetime
     customer_id: _Id
-    amount: Annotated[Decimal, Field(gt=0, le=MAX_AMOUNT, decimal_places=2)]
+    amount: Annotated[Decimal, Field(gt=0, decimal_places=2)]
     currency: Literal["AUD"]
     payee: Payee
     channel: Literal["mobile", "web", "branch"]
     session: Session
+
+    @field_validator("amount")
+    @classmethod
+    def _within_max_amount(cls, value: Decimal, info: ValidationInfo) -> Decimal:
+        # The ceiling comes from policy and is supplied by validate_request via the context.
+        limit = (info.context or {}).get("max_amount")
+        if limit is not None and value > limit:
+            # Error type matches pydantic's own so it maps to AMOUNT_TOO_LARGE.
+            raise PydanticCustomError("less_than_equal", "Amount exceeds the maximum allowed.")
+        return value
 
 
 class Decision(StrEnum):
@@ -97,8 +110,8 @@ _MESSAGES: dict[str, str] = {
     "AMOUNT_TOO_LARGE": "Amount exceeds the maximum allowed.",
     "AMOUNT_TOO_PRECISE": "Amount must have at most 2 decimal places.",
     "AMOUNT_INVALID": "Amount is not a valid finite decimal number.",
-    "INVALID_REQUEST_ID": "request_id must be a string of 1-64 characters.",
-    "INVALID_CUSTOMER_ID": "customer_id must be a string of 1-64 characters.",
+    "INVALID_REQUEST_ID": f"request_id must be a string of 1-{ID_MAX_LENGTH} characters.",
+    "INVALID_CUSTOMER_ID": f"customer_id must be a string of 1-{ID_MAX_LENGTH} characters.",
     "UNSUPPORTED_CURRENCY": "Only AUD is supported.",
     "INVALID_CHANNEL": "channel must be one of mobile, web, branch.",
     "INVALID_PAYEE": "payee must be an object.",
@@ -162,12 +175,17 @@ def _issues_from(exc: ValidationError) -> list[ValidationIssue]:
     return sorted(issues, key=lambda i: (i.field, i.code))
 
 
-def validate_request(raw: dict[str, Any]) -> PaymentRequest | list[ValidationIssue]:
-    """Validate raw input. Never raises; returns a request or a non-empty list of issues."""
+def validate_request(
+    raw: dict[str, Any], max_amount: Decimal
+) -> PaymentRequest | list[ValidationIssue]:
+    """Validate raw input. Never raises; returns a request or a non-empty list of issues.
+
+    ``max_amount`` is the policy ceiling (``Policy.max_amount``).
+    """
     if not isinstance(raw, dict):
         return [_issue("INVALID_REQUEST", "")]
     try:
-        return PaymentRequest.model_validate(raw)
+        return PaymentRequest.model_validate(raw, context={"max_amount": max_amount})
     except ValidationError as exc:
         return _issues_from(exc) or [_issue("INVALID_REQUEST", "")]
     except Exception:  # contract: validation must never raise

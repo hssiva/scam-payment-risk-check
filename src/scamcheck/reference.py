@@ -15,6 +15,8 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from scamcheck.schemas import ID_MAX_LENGTH
+
 REFERENCE_DIR_ENV = "SCAMCHECK_REFERENCE_DIR"
 _BSB = r"^000[0-9]{3}$"  # only the 000xxx range is allowed in synthetic data
 _ACCOUNT = r"^[0-9]{6,9}$"
@@ -115,7 +117,7 @@ class _Account(_Model):
 
 
 class _CustomerRow(_Model):
-    customer_id: Annotated[str, Field(min_length=1, max_length=64, strict=True)]
+    customer_id: Annotated[str, Field(min_length=1, max_length=ID_MAX_LENGTH, strict=True)]
     tenure_days: Annotated[int, Field(ge=0, strict=True)]
     typical_payment_amount: Annotated[Decimal, Field(gt=0, decimal_places=2)]
     known_payees: list[_Account]

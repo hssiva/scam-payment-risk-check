@@ -1,0 +1,18 @@
+# scamcheck policy. Thresholds and rules live here, not in code.
+# All amounts are AUD. Data used with this policy is SYNTHETIC.
+
+policy_version = "2026.11.1"
+
+# Amount at or above which risky combinations escalate (R03, R04).
+high_value_amount = 3000 #impersonation amount usually is less than 5k, so changed value from 5000 -> 3000
+# Amount at or above which missing reference data forces a HOLD (abstain).
+abstain_amount = 1000
+# Amount / customer's typical payment at or above which the amount is unusual (R05).
+unusual_ratio = 5
+# A new payee whose account is younger than this many days is suspicious (R06).
+young_account_days = 30
+# Model score thresholds (used from P5 onwards).
+score_warn = 0.35
+score_hold = 0.70
+# Largest amount accepted by input validation.
+max_amount = 1000000

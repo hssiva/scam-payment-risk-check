@@ -50,7 +50,7 @@ def request(
         }
         | session,
     }
-    result = validate_request(raw)
+    result = validate_request(raw, Decimal("1000000"))
     assert isinstance(result, PaymentRequest)
     return result
 

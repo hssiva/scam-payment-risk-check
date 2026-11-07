@@ -15,6 +15,12 @@ from scamcheck.schemas import (
     validate_request,
 )
 
+TEST_MAX_AMOUNT = Decimal("1000000")  # the engine passes policy.max_amount instead
+
+
+def validate(raw: Any, max_amount: Decimal = TEST_MAX_AMOUNT) -> Any:
+    return validate_request(raw, max_amount)
+
 
 def valid_raw() -> dict[str, Any]:
     # SYNTHETIC example
@@ -52,7 +58,7 @@ def codes(result: object) -> set[str]:
 
 
 def test_valid_request_parses() -> None:
-    result = validate_request(valid_raw())
+    result = validate(valid_raw())
     assert isinstance(result, PaymentRequest)
     assert result.amount == Decimal("250.50")
     assert result.timestamp.tzinfo is not None
@@ -61,7 +67,7 @@ def test_valid_request_parses() -> None:
 
 @pytest.mark.parametrize("amount", ["0.01", "1000000", 1000000, 12.5])
 def test_valid_amount_boundaries(amount: Any) -> None:
-    assert isinstance(validate_request(mutated("amount", amount)), PaymentRequest)
+    assert isinstance(validate(mutated("amount", amount)), PaymentRequest)
 
 
 @pytest.mark.parametrize(
@@ -101,11 +107,11 @@ def test_valid_amount_boundaries(amount: Any) -> None:
     ],
 )
 def test_invalid_input_maps_to_code(path: str, value: Any, expected: str) -> None:
-    assert codes(validate_request(mutated(path, value))) == {expected}
+    assert codes(validate(mutated(path, value))) == {expected}
 
 
 def test_issue_field_paths_are_reported() -> None:
-    result = validate_request(mutated("payee.bsb", "1"))
+    result = validate(mutated("payee.bsb", "1"))
     assert isinstance(result, list)
     assert result[0].field == "payee.bsb"
 
@@ -114,14 +120,14 @@ def test_multiple_issues_all_reported_and_deterministic() -> None:
     raw = mutated("amount", "-1")
     raw["payee"]["bsb"] = "1"
     raw["currency"] = "USD"
-    first = validate_request(raw)
+    first = validate(raw)
     assert codes(first) == {"AMOUNT_NOT_POSITIVE", "INVALID_BSB", "UNSUPPORTED_CURRENCY"}
-    assert first == validate_request(raw)
+    assert first == validate(raw)
 
 
 @pytest.mark.parametrize("raw", [None, [], "text", 42, {}])
 def test_non_object_or_empty_input_never_raises(raw: Any) -> None:
-    result = validate_request(raw)
+    result = validate(raw)
     assert isinstance(result, list)
     assert result
     assert all(isinstance(i, ValidationIssue) for i in result)
@@ -131,7 +137,7 @@ def test_issues_do_not_leak_input_values() -> None:
     raw = mutated("payee.account_number", "99999")
     raw["amount"] = "7777.123"
     raw["payee"]["name"] = ""
-    dumped = " ".join(i.model_dump_json() for i in validate_request(raw))  # type: ignore[union-attr]
+    dumped = " ".join(i.model_dump_json() for i in validate(raw))  # type: ignore[union-attr]
     for secret in ("99999", "7777", "12345678"):
         assert secret not in dumped
 
@@ -182,3 +188,9 @@ def test_decision_response_rejects_unknown_field_and_bad_enum() -> None:
 def test_enums_have_expected_members() -> None:
     assert {d.value for d in Decision} == {"ALLOW", "WARN", "HOLD", "REJECT"}
     assert {m.value for m in Mode} == {"NORMAL", "DEGRADED_RULES_ONLY"}
+
+
+def test_max_amount_is_configurable() -> None:
+    raw = mutated("amount", "500.00")
+    assert isinstance(validate(raw, max_amount=Decimal("500")), PaymentRequest)
+    assert codes(validate(raw, max_amount=Decimal("499.99"))) == {"AMOUNT_TOO_LARGE"}
