@@ -36,3 +36,8 @@
 - Concurrency: audit appends are serialised by a thread lock plus a POSIX `flock`, so several threads, or several processes on the same host and a local filesystem, can safely share one audit file (tested with 200 threaded appends and with 4 processes x 25 appends). It is not safe across hosts or on network or shared filesystems, where `flock` may not hold. This single-file audit log is for the demo and local use only: production needs a proper store (for example WORM or object-lock storage, or a database with append-only guarantees) plus the latest `record_hash` kept off the box.
 - The demo has no authentication; compose publishes the port on `127.0.0.1` only. `/v1/eval` and `/v1/audit` are open to anyone who can reach the port.
 - CI: `.github/workflows/ci.yml` runs `make setup` and `make verify` on push and pull request.
+
+### Web UI
+- Open `http://localhost:8000/` (the same app and port as the API; `/docs` is the API reference). The UI has no authentication and no build step; editing `src/scamcheck/static/*` and reloading the page is enough (the Docker image copies `src/`).
+- To show the degrade toggle, start with demo mode on: `SCAMCHECK_DEMO_MODE=1 make run-api`, or uncomment the line in `docker-compose.yml`. Without demo mode the toggle is not rendered.
+- The browser needs JavaScript. The strict Content-Security-Policy means the page cannot load anything from another origin; if you embed it behind a proxy, keep it same-origin.

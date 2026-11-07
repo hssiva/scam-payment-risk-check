@@ -15,10 +15,12 @@ import os
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, StrictBool, ValidationError
 from starlette.concurrency import run_in_threadpool
 
@@ -41,6 +43,12 @@ from scamcheck.schemas import Decision, DecisionResponse, Mode
 
 DEMO_MODE_ENV = "SCAMCHECK_DEMO_MODE"
 MAX_BODY_BYTES = 64 * 1024
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+# Same-origin only: no external scripts, styles, fonts, frames or form targets.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; base-uri 'none'; form-action 'none'; "
+    "frame-ancestors 'none'; object-src 'none'"
+)
 DEFAULT_AUDIT_LIMIT = 20
 LOGGED_FIELDS = ("decision_id", "decision", "mode", "latency_ms")
 DEMO_FAILURE_RUNTIME = ModelRuntime(model=None, reason="DEMO_MODEL_FAILURE")
@@ -180,6 +188,20 @@ def create_app(
     app = FastAPI(title="scamcheck", version="0.1.0", description="SYNTHETIC data only.")
     app.state.scamcheck = state
 
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next: Any) -> Any:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        # Not applied to /docs, whose Swagger UI loads its assets from a CDN.
+        if request.url.path == "/" or request.url.path.startswith("/static/"):
+            response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+        return response
+
+    @app.get("/", include_in_schema=False)
+    def index() -> FileResponse:
+        return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+
     @app.post(
         "/v1/assess",
         responses={200: {"model": DecisionResponse}, 422: {"model": DecisionResponse}},
@@ -201,9 +223,18 @@ def create_app(
         status = 422 if response.decision is Decision.REJECT else 200
         return JSONResponse(status_code=status, content=response.model_dump(mode="json"))
 
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> Response:
+        return Response(status_code=204)  # no icon; avoids a 404 in browser consoles and logs
+
     @app.get("/health")
     def health() -> dict[str, object]:
-        return check_health(state.policy, state.reference, state.runtime, state.audit).as_dict()
+        report = check_health(state.policy, state.reference, state.runtime, state.audit)
+        return {
+            **report.as_dict(),
+            "demo_mode": state.demo_mode,
+            "demo_model_failure": state.demo_failure,
+        }
 
     @app.get("/v1/scenarios")
     def scenarios() -> Any:
@@ -257,6 +288,7 @@ def create_app(
         mode = Mode.NORMAL if state.runtime.model is not None else Mode.DEGRADED_RULES_ONLY
         return JSONResponse(content={"enabled": state.demo_failure, "mode": mode.value})
 
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     return app
 
 

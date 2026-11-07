@@ -107,6 +107,8 @@ def test_health_when_everything_works(client: TestClient) -> None:
         "model_version": "risk_model_v1",
         "policy_version": "2026.11.1",
         "reasons": [],
+        "demo_mode": False,
+        "demo_model_failure": False,
     }
 
 

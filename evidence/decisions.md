@@ -50,3 +50,11 @@
 - Policy and reference data are loaded once at API startup; if they cannot be loaded the engine reloads per request and fails safe (HOLD), so the service recovers when the files are fixed. The model is loaded once per process.
 - Compose binds `127.0.0.1:8000` (no authentication), one uvicorn worker, audit on a named volume.
 - Test isolation: CLI tests detach the API's stdout log handler, which is installed process-wide when `scamcheck.api` is imported. Starlette's test client prints a deprecation warning suggesting `httpx2`; I did not add a dependency for it.
+
+## D9: Web UI choices (P7b)
+- `/health` gained `demo_mode` and `demo_model_failure` (the brief says the toggle depends on `/health` reporting demo mode). The exact-body health test was updated for the two new fields.
+- The strict CSP is applied to `/` and `/static/` only, because FastAPI's `/docs` page loads Swagger UI from a CDN and would break under `default-src 'self'`. The two other headers apply to every response.
+- The JSON box is sent exactly as typed (not parsed and re-serialised) so that invalid JSON demonstrates the REJECT path; the scenario dropdown shows ids and typologies only, never the expected labels.
+- Favicon: answered with 204 instead of shipping an icon file, to keep the page to the three requested static files.
+- The scenario list in the UI comes from `/v1/scenarios`, which lists the gated scenarios only, so the five known-limitation cases are not in the dropdown (they appear in the evaluation panel's folded section).
+- Browser behaviour was verified with a scratch DevTools-protocol script, not a committed test, because a browser is not a dependency of `make verify`. The committed tests cover the static guarantees (CSP, no `innerHTML`, no external resources, wiring).

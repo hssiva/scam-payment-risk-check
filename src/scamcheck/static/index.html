@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>scamcheck</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>scamcheck</h1>
+    <p class="hint">Explainable payment scam risk check. SYNTHETIC data only.</p>
+  </header>
+
+  <div id="health-banner" class="banner banner-unknown" role="status" aria-live="polite">
+    <span id="health-text">Checking service health&hellip;</span>
+    <span id="demo-controls"></span>
+  </div>
+
+  <main>
+    <section id="assess-panel" aria-labelledby="assess-title">
+      <h2 id="assess-title">1. Assess a payment</h2>
+      <label for="scenario-select">Scenario</label>
+      <select id="scenario-select"></select>
+      <p id="scenario-description" class="hint"></p>
+      <label for="request-json">Request (JSON, editable)</label>
+      <textarea id="request-json" rows="20" spellcheck="false"></textarea>
+      <div class="actions">
+        <button id="submit-btn" type="button">Submit</button>
+      </div>
+      <p id="assess-error" class="error" role="alert" hidden></p>
+      <div id="decision-card" class="decision-card" role="region" aria-live="polite"
+           aria-label="Decision" hidden></div>
+    </section>
+
+    <section id="audit-panel" aria-labelledby="audit-title">
+      <h2 id="audit-title">2. Audit trail</h2>
+      <p class="hint">The last 20 records. Account numbers are masked; amounts are never stored.</p>
+      <div class="actions">
+        <button id="audit-refresh-btn" type="button">Refresh</button>
+        <button id="verify-btn" type="button">Verify chain</button>
+      </div>
+      <p id="verify-result" class="result" role="status" hidden></p>
+      <p id="audit-error" class="error" role="alert" hidden></p>
+      <div id="audit-table" class="table-wrap"></div>
+    </section>
+
+    <section id="eval-panel" aria-labelledby="eval-title">
+      <h2 id="eval-title">3. Evaluation</h2>
+      <p class="hint">Runs every labelled scenario through the engine and checks the six gates.</p>
+      <div class="actions">
+        <button id="eval-btn" type="button">Run evaluation</button>
+      </div>
+      <p id="eval-error" class="error" role="alert" hidden></p>
+      <div id="eval-results" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="hint">
+    API documentation: <a href="/docs">/docs</a>
+  </footer>
+</body>
+</html>
