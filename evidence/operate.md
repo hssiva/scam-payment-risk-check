@@ -45,6 +45,10 @@ Verify regularly. **Concurrency:** appends are serialised by a thread lock plus 
 
 Everything that shapes a decision is versioned and visible: `policy_version` and `model_version` are in every response and audit record. To roll back, restore the previous `policy.toml`, `models/` files or image tag and restart. `git revert` plus redeploy is the mechanism today; there is no automated rollback.
 
+## Evidence gate
+
+`make evidence-check` (also part of `make verify` and CI) checks the evidence notes, the decision records, the commit-subject format and that `evidence/eval-report.md` is as recent as the code; see `verify.md`. If check 4 fails ("source changed in ... after the report's last change"): run `make eval` and commit `evidence/eval-report.md` with the change. If checks 3 or 4 say "shallow clone": fetch the full history (`git fetch --unshallow`; in GitHub Actions the checkout uses `fetch-depth: 0`). Use a Conventional Commit subject (`feat|fix|test|docs|chore|ci|refactor`, optional scope, `: description`).
+
 ## Local to cloud (proposal, not built)
 
 Run the same image on a managed container platform behind an authenticated gateway; replace file reference data with a managed store; write the audit trail to WORM or ledger storage; supply configuration through the platform's config and secret services; send JSON logs to central logging; add alerts on degrade events, hold rate and latency. Rollout and rollback practice (shadow, champion/challenger, canary) is in `design.md`.

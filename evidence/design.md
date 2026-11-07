@@ -51,7 +51,7 @@ What is built is described in the first six sections. "Production shape and CI/C
 | `audit.py` | Append-only hash-chained log, `verify()`, masking |
 | `api.py`, `static/`, `cli.py`, `health.py` | HTTP service and same-origin web UI; command line; shared health check |
 | `evaluate.py`, `sample-data/scenarios*.jsonl` | Labelled scenarios, six gates, report |
-| `scripts/` | Seeded generators for reference and training data; model training |
+| `scripts/` | Seeded generators for reference and training data; model training; `check_evidence.py` (the evidence gate) |
 
 ## Trade-offs
 
@@ -80,7 +80,7 @@ Python 3.12; FastAPI, uvicorn and pydantic v2 as the only direct runtime depende
 **Shape.** Stateless containers behind an authenticated gateway, scaled horizontally, with health-based rollout. Reference data from a managed store or feature service instead of JSON files. Audit records written to WORM or object-lock storage or an append-only ledger database, with the latest chain hash anchored off the box. Model artifacts signed in a model registry. Policy as versioned configuration. Secrets, if ever needed, from the platform's secret manager. Logs and metrics (decision mix, hold rate, latency, degrade events) to central observability.
 
 **Path to production.**
-1. *Pull request:* `make verify` (already runs in GitHub Actions on every push and pull request).
+1. *Pull request:* `make verify`, which includes the evidence gate (already runs in GitHub Actions on every push and pull request, with the full commit history).
 2. *Pipeline (to add):* build the image, scan it and its dependencies, deploy to a staging environment, run `scamcheck eval` and the browser checks against it.
 3. *Model-risk sign-off:* a new model or policy version is promoted only with the evaluation report, metrics, known limitations and the diff from the current version, approved by model risk.
 4. *Shadow mode:* the new version scores live traffic with no effect on decisions; compare its decisions and score distributions with production.

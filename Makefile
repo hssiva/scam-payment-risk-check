@@ -2,7 +2,7 @@ PYTHON ?= python3.12
 VENV := .venv
 BIN := $(VENV)/bin
 
-.PHONY: setup lint format test eval verify run-api clean
+.PHONY: setup lint format test eval evidence-check verify run-api clean
 
 setup:
 	$(PYTHON) -m venv $(VENV)
@@ -22,11 +22,15 @@ test:
 eval:
 	$(BIN)/python -m scamcheck.evaluate
 
+evidence-check:
+	$(BIN)/python scripts/check_evidence.py
+
 verify:
 	$(BIN)/ruff check .
 	$(BIN)/ruff format --check .
 	$(BIN)/pytest
 	@$(MAKE) --no-print-directory eval
+	@$(MAKE) --no-print-directory evidence-check
 
 run-api:
 	$(BIN)/uvicorn scamcheck.api:app --host 127.0.0.1 --port 8000

@@ -29,7 +29,7 @@ Port 8000 must be free; it is published on `127.0.0.1` only. Stop with Ctrl+C, t
 
 ```bash
 make setup      # creates .venv, installs pinned dependencies, installs the package and the CLI
-make verify     # ruff, format check, tests and the evaluation gate (see below)
+make verify     # ruff, format check, tests, the evaluation gate and the evidence gate (see below)
 make run-api    # web UI and API on http://127.0.0.1:8000 (one worker)
 ```
 
@@ -122,8 +122,10 @@ severe of the rule results and the model's score band.
 ## `make verify`
 
 One command runs everything CI runs: `ruff check`, `ruff format --check`, the full `pytest` suite,
-and the evaluation gate (`make eval`: 39 labelled scenarios, six gates, exit code 1 if any fails).
-At the time of writing: 534 tests pass and all six gates pass. Details in
+the evaluation gate (`make eval`: 39 labelled scenarios, six gates, exit code 1 if any fails) and the
+evidence gate (`make evidence-check`: the evidence notes exist and have content, at least 3 decision
+records, Conventional Commit subjects, and the evaluation report is as recent as the code).
+At the time of writing: 610 tests pass, all six evaluation gates pass and all four evidence checks pass. Details in
 [evidence/verify.md](evidence/verify.md); the per-scenario report is
 [evidence/eval-report.md](evidence/eval-report.md).
 

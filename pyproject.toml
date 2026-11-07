@@ -46,3 +46,6 @@ select = ["E", "F", "I", "B", "UP", "S"]
 # Seeded pseudo-random numbers for SYNTHETIC data; not used for anything security related.
 "scripts/generate_training_data.py" = ["S311"]
 "scripts/train_model.py" = ["S311"]  # seeded train/held-out shuffle
+# These run git with fixed argument lists (never a shell) to read or build repository history.
+"scripts/check_evidence.py" = ["S404", "S603", "S607"]
+"tests/test_check_evidence.py" = ["S101", "S404", "S603", "S607"]
