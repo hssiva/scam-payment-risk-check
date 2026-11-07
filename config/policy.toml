@@ -1,7 +1,7 @@
 # scamcheck policy. Thresholds and rules live here, not in code.
 # All amounts are AUD. Data used with this policy is SYNTHETIC.
 
-policy_version = "2026.11.1"
+policy_version = "2026.11.2"
 
 # Amount at or above which risky combinations escalate (R03, R04).
 high_value_amount = 3000 #impersonation amount usually is less than 5k, so changed value from 5000 -> 3000

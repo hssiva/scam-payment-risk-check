@@ -83,7 +83,7 @@ def test_clean_allow() -> None:
     assert response.decision is Decision.ALLOW
     assert codes(response) == ["NO_RISK_SIGNALS"]
     assert response.mode is Mode.NORMAL
-    assert response.policy_version == "2026.11.1"
+    assert response.policy_version == POLICY.policy_version
     assert response.model_version == "neutral-test"
     assert response.risk_score == 0.0
     assert response.request_id == "req-1"
@@ -284,7 +284,7 @@ def test_fail_safe_when_reference_data_unavailable(
     response = assess(raw_request("cust-001", KNOWN_001, "150.00"))
     assert response.decision is Decision.HOLD
     assert codes(response) == ["REFERENCE_DATA_UNAVAILABLE"]
-    assert response.policy_version == "2026.11.1"
+    assert response.policy_version == POLICY.policy_version
 
 
 def test_invalid_input_is_still_rejected_when_reference_data_is_unavailable(

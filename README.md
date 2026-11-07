@@ -111,7 +111,7 @@ Output (`decision_id` is random and `latency_ms` varies per call):
   ],
   "mode": "NORMAL",
   "model_version": "risk_model_v1",
-  "policy_version": "2026.11.1",
+  "policy_version": "2026.11.2",
   "latency_ms": 3.074
 }
 ```

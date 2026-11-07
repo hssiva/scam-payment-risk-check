@@ -30,7 +30,7 @@ def write(tmp_path: Path, text: str) -> Path:
 
 def test_real_policy_values() -> None:
     policy = load_policy()
-    assert policy.policy_version == "2026.11.1"
+    assert policy.policy_version == "2026.11.2"
     assert policy.high_value_amount == Decimal("3000")
     assert policy.abstain_amount == Decimal("1000")
     assert policy.unusual_ratio == Decimal("5")

@@ -48,3 +48,7 @@ Everything that shapes a decision is versioned and visible: `policy_version` and
 ## Local to cloud (proposal, not built)
 
 Run the same image on a managed container platform behind an authenticated gateway; replace file reference data with a managed store; write the audit trail to WORM or ledger storage; supply configuration through the platform's config and secret services; send JSON logs to central logging; add alerts on degrade events, hold rate and latency. Rollout and rollback practice (shadow, champion/challenger, canary) is in `design.md`.
+
+### Policy version history
+- `2026.11.1`: the first policy (rules R01 to R06, abstain, score and evaluation-gate thresholds). R07 and the removal of amounts from the audit were added under this version without a bump.
+- `2026.11.2`: adds `name_close_threshold`; name matching changed (initials and reordered words are now CLOSE), so decisions for some names changed. Bump `policy_version` whenever a change to `policy.toml` or to decision logic changes decisions.

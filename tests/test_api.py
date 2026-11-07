@@ -9,8 +9,10 @@ from scamcheck.api import DEMO_MODE_ENV, JsonFormatter, create_app
 from scamcheck.audit import RECORD_FIELDS, AuditLog
 from scamcheck.evaluate import DEFAULT_SCENARIOS, load_scenarios
 from scamcheck.model import MODEL_PATH_ENV
+from scamcheck.policy import load_policy
 
 SCENARIOS = {s.id: s.request for s in load_scenarios(DEFAULT_SCENARIOS)}
+POLICY_VERSION = load_policy().policy_version
 GENUINE = SCENARIOS["G01"]
 SCAM = SCENARIOS["S01"]
 RESPONSE_FIELDS = {
@@ -105,7 +107,7 @@ def test_health_when_everything_works(client: TestClient) -> None:
         "status": "ok",
         "mode": "NORMAL",
         "model_version": "risk_model_v1",
-        "policy_version": "2026.11.1",
+        "policy_version": POLICY_VERSION,
         "reasons": [],
         "demo_mode": False,
         "demo_model_failure": False,
@@ -120,7 +122,7 @@ def test_health_reports_degraded_mode_when_the_model_is_unavailable(tmp_path: Pa
     assert body["status"] == "degraded"
     assert body["mode"] == "DEGRADED_RULES_ONLY"
     assert body["model_version"] is None
-    assert body["policy_version"] == "2026.11.1"
+    assert body["policy_version"] == POLICY_VERSION
     assert "MODEL_FILE_MISSING" in body["reasons"]
     decision = client.post("/v1/assess", json=GENUINE).json()
     assert decision["mode"] == "DEGRADED_RULES_ONLY"
@@ -305,7 +307,7 @@ def test_eval_endpoint_returns_gates_and_scenario_results(client: TestClient) ->
     assert {"id", "expected", "actual", "risk_score", "reason_codes", "passed"} <= set(first)
     assert body["known_limitations"]["non_gating"] is True
     assert body["known_limitations"]["total"] >= 6
-    assert body["policy_version"] == "2026.11.1"
+    assert body["policy_version"] == POLICY_VERSION
 
 
 def test_eval_endpoint_writes_nothing_to_the_audit_trail(client: TestClient) -> None:
