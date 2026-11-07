@@ -13,6 +13,7 @@ unusual_ratio = 5
 young_account_days = 30
 score_warn = 0.35
 score_hold = 0.70
+name_close_threshold = 0.8
 max_amount = 1000000
 
 [evaluation]
@@ -36,6 +37,7 @@ def test_real_policy_values() -> None:
     assert policy.young_account_days == 30
     assert policy.score_warn == 0.35
     assert policy.score_hold == 0.70
+    assert policy.name_close_threshold == 0.80
     assert policy.max_amount == Decimal("1000000")
     assert policy.evaluation.min_scam_warn_or_hold_rate == 0.90
     assert policy.evaluation.max_genuine_hold_rate == 0.10
@@ -74,6 +76,9 @@ def test_invalid_toml(tmp_path: Path) -> None:
         VALID.replace("young_account_days = 30", "young_account_days = 30.5"),
         VALID.replace("score_warn = 0.35", "score_warn = 0.8"),  # warn >= hold
         VALID.replace("score_hold = 0.70", "score_hold = 1.5"),
+        VALID.replace("name_close_threshold = 0.8", "name_close_threshold = 0"),
+        VALID.replace("name_close_threshold = 0.8", "name_close_threshold = 1.5"),
+        VALID.replace("name_close_threshold = 0.8\n", ""),  # missing key
         VALID.replace("max_amount = 1000000", 'max_amount = "lots"'),
         VALID.replace("min_scam_warn_or_hold_rate = 0.9", "min_scam_warn_or_hold_rate = 0"),
         VALID.replace("max_genuine_hold_rate = 0.1", "max_genuine_hold_rate = 1.5"),

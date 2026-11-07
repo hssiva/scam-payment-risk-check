@@ -39,6 +39,7 @@ class Policy(BaseModel):
     young_account_days: Annotated[int, Field(ge=0, strict=True)]
     score_warn: Annotated[float, Field(gt=0, le=1)]
     score_hold: Annotated[float, Field(gt=0, le=1)]
+    name_close_threshold: Annotated[float, Field(gt=0, le=1)]
     max_amount: Annotated[Decimal, Field(gt=0)]
     evaluation: EvaluationGates
 

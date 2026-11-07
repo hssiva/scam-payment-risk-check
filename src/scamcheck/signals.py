@@ -10,8 +10,6 @@ from enum import StrEnum
 from scamcheck.reference import ReferenceData, payee_key
 from scamcheck.schemas import PaymentRequest
 
-# TODO: move to config/policy.toml once the policy loader exists.
-DEFAULT_CLOSE_THRESHOLD = 0.80
 _RATIO_PLACES = Decimal("0.0001")
 
 
@@ -43,19 +41,36 @@ def normalise_name(name: str) -> list[str]:
     return cleaned.split()
 
 
-def _tokens_match(a: str, b: str) -> bool:
+def _same_or_initial(a: str, b: str) -> bool:
+    """The same word, or one side is only the first letter of the other ("j" and "john")."""
     return a == b or (min(len(a), len(b)) == 1 and a[0] == b[0])
 
 
-def name_match(
-    entered: str, on_account: str, close_threshold: float = DEFAULT_CLOSE_THRESHOLD
-) -> NameMatch:
-    """Compare the name the customer typed with the name on the account."""
+def _aligned(a: list[str], b: list[str]) -> bool:
+    return len(a) == len(b) and all(_same_or_initial(x, y) for x, y in zip(a, b, strict=True))
+
+
+def _reorderings(tokens: list[str]) -> list[list[str]]:
+    """The words as given, rotated and reversed: "Smith John Paul" is "John Paul Smith" rotated."""
+    reverse = tokens[::-1]
+    return [t[i:] + t[:i] for t in (tokens, reverse) for i in range(len(t))]
+
+
+def name_match(entered: str, on_account: str, close_threshold: float) -> NameMatch:
+    """Compare the name the customer typed with the name on the account.
+
+    MATCH: the same words after normalising case, punctuation and spacing.
+    CLOSE: the same words in a different order ("Smith, John"), initials instead of full words
+    ("J Smith"), or similar enough to be a typo (similarity at or above ``close_threshold``).
+    MISMATCH: anything else, including an empty name.
+    """
     a, b = normalise_name(entered), normalise_name(on_account)
     if not a or not b:
         return NameMatch.MISMATCH
-    if len(a) == len(b) and all(_tokens_match(x, y) for x, y in zip(a, b, strict=True)):
+    if a == b:
         return NameMatch.MATCH
+    if sorted(a) == sorted(b) or any(_aligned(a, order) for order in _reorderings(b)):
+        return NameMatch.CLOSE
     ratio = difflib.SequenceMatcher(None, " ".join(a), " ".join(b)).ratio()
     return NameMatch.CLOSE if ratio >= close_threshold else NameMatch.MISMATCH
 
@@ -63,7 +78,7 @@ def name_match(
 def build_signals(
     request: PaymentRequest,
     reference: ReferenceData,
-    close_threshold: float = DEFAULT_CLOSE_THRESHOLD,
+    close_threshold: float,
 ) -> Signals:
     bsb, account = request.payee.bsb, request.payee.account_number
     customer = reference.customer(request.customer_id)

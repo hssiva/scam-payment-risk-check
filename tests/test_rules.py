@@ -28,6 +28,7 @@ POLICY = Policy(
     young_account_days=30,
     score_warn=0.35,
     score_hold=0.70,
+    name_close_threshold=0.80,
     max_amount=Decimal("1000000"),
     evaluation=EvaluationGates(min_scam_warn_or_hold_rate=0.9, max_genuine_hold_rate=0.1),
 )

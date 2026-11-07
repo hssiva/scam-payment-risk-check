@@ -152,7 +152,11 @@ def _decide(
         return _respond(meta, Decision.REJECT, _reject_reasons(validated), policy.policy_version)
     request = validated
 
-    signals = build_signals(request, reference if reference is not None else load_reference())
+    signals = build_signals(
+        request,
+        reference if reference is not None else load_reference(),
+        policy.name_close_threshold,
+    )
 
     floors: list[Decision] = []
     reasons: list[Reason] = []

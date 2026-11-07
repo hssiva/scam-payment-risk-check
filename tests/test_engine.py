@@ -354,3 +354,26 @@ def test_r07_does_not_fire_just_below_high_value() -> None:
     response = assess(raw_request("cust-009", YOUNG, money(POLICY.high_value_amount - CENT)))
     assert response.decision is Decision.WARN
     assert codes(response) == ["R06_YOUNG_PAYEE_ACCOUNT"]
+
+
+def test_name_close_threshold_comes_from_the_policy() -> None:
+    typo = KNOWN_009 | {"name": "Skyller Synthetic"}  # one extra letter: similar, not the same
+    raw = raw_request("cust-009", typo, "100.00")
+    assert codes(assess(raw)) == ["NO_RISK_SIGNALS"]  # CLOSE at the policy's threshold
+    strict = POLICY.model_copy(update={"name_close_threshold": 0.99})
+    response = assess(raw, policy=strict)
+    assert response.decision is Decision.WARN
+    assert codes(response) == ["R04_PAYEE_NAME_MISMATCH"]
+
+
+def test_surname_first_and_initials_do_not_trigger_the_name_mismatch_rule() -> None:
+    for typed in ("Examplesmith, Jordan", "J Examplesmith", "Examplesmith Jordan"):
+        payee = KNOWN_001 | {"name": typed}
+        response = assess(raw_request("cust-001", payee, "150.00"))
+        assert response.decision is Decision.ALLOW, typed
+        assert codes(response) == ["NO_RISK_SIGNALS"], typed
+
+
+def test_a_genuinely_different_name_still_triggers_the_name_mismatch_rule() -> None:
+    payee = KNOWN_001 | {"name": "Somebody Else Entirely"}
+    assert "R04_PAYEE_NAME_MISMATCH" in codes(assess(raw_request("cust-001", payee, "150.00")))
