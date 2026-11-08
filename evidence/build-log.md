@@ -3,12 +3,12 @@ Last login: Sat Nov  7 11:28:31 on ttys009
 The default interactive shell is now zsh.
 To update your account to use zsh, please run `chsh -s /bin/zsh`.
 For more details, please visit https://support.apple.com/kb/HT208050.
-Halasyas-MacBook-Pro:~ siva$ cd MyApps/scam-payment-risk-check/
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ ls
+host:~ user$ cd MyApps/scam-payment-risk-check/
+host:scam-payment-risk-check user$ ls
 CLAUDE.md		evidence		models			requirements-dev.txt	sample-data		src
 config			Makefile		pyproject.toml		requirements.txt	scripts			tests
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ less Makefile 
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "amount\|float\|Decimal" src/scamcheck/schemas.py
+host:scam-payment-risk-check user$ less Makefile 
+host:scam-payment-risk-check user$ grep -n "amount\|float\|Decimal" src/scamcheck/schemas.py
 4:numbers, payee names and amounts cannot leak into responses or logs.
 9:from decimal import Decimal
 23:MAX_AMOUNT = Decimal("1000000")
@@ -16,7 +16,7 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "amount\|float\|Decim
 76:    risk_score: float | None
 81:    latency_ms: float
 146:    if field == "amount":
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "assert\|parametrize\|raises" tests/test_schemas.py
+host:scam-payment-risk-check user$ grep -n "assert\|parametrize\|raises" tests/test_schemas.py
 50:    assert isinstance(result, list)
 56:    assert isinstance(result, PaymentRequest)
 57:    assert result.amount == Decimal("250.50")
@@ -47,10 +47,10 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "assert\|parametrize\
 178:    with pytest.raises(ValidationError):
 183:    assert {d.value for d in Decision} == {"ALLOW", "WARN", "HOLD", "REJECT"}
 184:    assert {m.value for m in Mode} == {"NORMAL", "DEGRADED_RULES_ONLY"}
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/pytest -q
+host:scam-payment-risk-check user$ .venv/bin/pytest -q
 ..................................................                                                                                                          [100%]
 50 passed in 0.31s
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python - <<'EOF'
+host:scam-payment-risk-check user$ .venv/bin/python - <<'EOF'
 > from scamcheck.schemas import validate_request
 > 
 > base = {
@@ -75,7 +75,7 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python - <<'EOF'
 valid           -> OK, amount = Decimal('100.10')
 no timezone     -> REJECTED: ['NAIVE_TIMESTAMP']
 3 decimals      -> REJECTED: ['AMOUNT_TOO_PRECISE']
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python - <<'EOF'
+host:scam-payment-risk-check user$ .venv/bin/python - <<'EOF'
 > import json, re, pathlib
 > ref = pathlib.Path("sample-data/reference")
 > 
@@ -116,12 +116,12 @@ BSBs AND SYNTHETIC LABELS
 customers.json       BSBs found:   3   not 000xxx: none   SYNTHETIC label: True
 payees.json          BSBs found:   4   not 000xxx: none   SYNTHETIC label: True
 mule_accounts.json   BSBs found:   2   not 000xxx: none   SYNTHETIC label: True
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "def " src/scamcheck/signals.py
+host:scam-payment-risk-check user$ grep -n "def " src/scamcheck/signals.py
 38:def normalise_name(name: str) -> list[str]:
 46:def _tokens_match(a: str, b: str) -> bool:
 50:def name_match(
 63:def build_signals(
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python - <<'EOF'
+host:scam-payment-risk-check user$ .venv/bin/python - <<'EOF'
 > from scamcheck import signals
 > fn = signals.match_payee_name   # <- change if the function has a different name
 > cases = [
@@ -143,7 +143,7 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python - <<'EOF'
 Traceback (most recent call last):
   File "<stdin>", line 2, in <module>
 AttributeError: module 'scamcheck.signals' has no attribute 'match_payee_name'
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python - <<'EOF'
+host:scam-payment-risk-check user$ .venv/bin/python - <<'EOF'
 > from scamcheck import signals
 > fn = signals.name_match   # <- change if the function has a different name
 > cases = [
@@ -170,12 +170,12 @@ ok  'Jon Smith'        vs 'John Smith'       -> CLOSE   (expected CLOSE)
 ok  'ACME Pty Ltd'     vs 'Acme Pty. Ltd.'   -> MATCH   (expected MATCH)
 ok  'Jane Doe'         vs 'John Smith'       -> MISMATCH   (expected MISMATCH)
 ok  'John Smith'       vs 'Smith Holdings'   -> MISMATCH   (expected MISMATCH)
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "amount_ratio\|typical" src/scamcheck/signals.py
+host:scam-payment-risk-check user$ grep -n "amount_ratio\|typical" src/scamcheck/signals.py
 28:    amount_ratio: Decimal | None
 73:    amount_ratio = (
 74:        (request.amount / customer.typical_payment_amount).quantize(_RATIO_PLACES)
 85:        amount_ratio=amount_ratio,
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "unknown\|data_complete\|amount_ratio" tests/*.py
+host:scam-payment-risk-check user$ grep -n "unknown\|data_complete\|amount_ratio" tests/*.py
 tests/test_schemas.py:173:def test_decision_response_rejects_unknown_field_and_bad_enum() -> None:
 tests/test_signals.py:66:def test_amount_ratio_is_decimal_and_quantised() -> None:
 tests/test_signals.py:68:    assert signals.amount_ratio == Decimal("3.0000")
@@ -192,45 +192,45 @@ tests/test_signals.py:133:    assert signals.data_complete is False
 tests/test_signals.py:136:def test_unknown_customer_and_payee() -> None:
 tests/test_signals.py:138:    assert signals.data_complete is False
 tests/test_signals.py:140:    assert signals.amount_ratio is None
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "typical" src/scamcheck/signals.py
+host:scam-payment-risk-check user$ grep -n "typical" src/scamcheck/signals.py
 74:        (request.amount / customer.typical_payment_amount).quantize(_RATIO_PLACES)
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "def " src/scamcheck/signals.py
+host:scam-payment-risk-check user$ grep -n "def " src/scamcheck/signals.py
 38:def normalise_name(name: str) -> list[str]:
 46:def _tokens_match(a: str, b: str) -> bool:
 50:def name_match(
 63:def build_signals(
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -rn "TODO\|0\.8\|MAX_AMOUNT" src/
+host:scam-payment-risk-check user$ grep -rn "TODO\|0\.8\|MAX_AMOUNT" src/
 src/scamcheck/signals.py:13:# TODO: move to config/policy.toml once the policy loader exists.
 src/scamcheck/signals.py:14:DEFAULT_CLOSE_THRESHOLD = 0.80
 Binary file src/scamcheck/__pycache__/schemas.cpython-312.pyc matches
 src/scamcheck/schemas.py:22:# TODO: move to config/policy.toml once the policy loader exists.
 src/scamcheck/schemas.py:23:MAX_AMOUNT = Decimal("1000000")
 src/scamcheck/schemas.py:48:    amount: Annotated[Decimal, Field(gt=0, le=MAX_AMOUNT, decimal_places=2)]
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ ls scripts/
+host:scam-payment-risk-check user$ ls scripts/
 README.md
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ The data generator isn't in the repo: scripts/ only has README.md. Add it as
+host:scam-payment-risk-check user$ The data generator isn't in the repo: scripts/ only has README.md. Add it as
 > scripts/generate_reference_data.py, with a fixed seed, so it recreates exactly the current
 > files in sample-data/reference/. Update scripts/README.md with how to run it. Run make verify.
 > 
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python scripts/generate_reference_data.py
-wrote /Users/siva/MyApps/scam-payment-risk-check/sample-data/reference/customers.json
-wrote /Users/siva/MyApps/scam-payment-risk-check/sample-data/reference/payees.json
-wrote /Users/siva/MyApps/scam-payment-risk-check/sample-data/reference/mule_accounts.json
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ git diff --stat sample-data/
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ less config/policy.toml
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ vi config/policy.toml
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -nE "[^a-zA-Z_][0-9]{2,}" src/scamcheck/rules.py src/scamcheck/engine.py
+host:scam-payment-risk-check user$ .venv/bin/python scripts/generate_reference_data.py
+wrote /Users/user/MyApps/scam-payment-risk-check/sample-data/reference/customers.json
+wrote /Users/user/MyApps/scam-payment-risk-check/sample-data/reference/payees.json
+wrote /Users/user/MyApps/scam-payment-risk-check/sample-data/reference/mule_accounts.json
+host:scam-payment-risk-check user$ git diff --stat sample-data/
+host:scam-payment-risk-check user$ less config/policy.toml
+host:scam-payment-risk-check user$ vi config/policy.toml
+host:scam-payment-risk-check user$ grep -nE "[^a-zA-Z_][0-9]{2,}" src/scamcheck/rules.py src/scamcheck/engine.py
 src/scamcheck/engine.py:29:_MAX_ID_LENGTH = 64
 src/scamcheck/engine.py:68:        latency_ms=round((time.perf_counter() - meta.started) * 1000, 3),
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -rn "TODO" src/
+host:scam-payment-risk-check user$ grep -rn "TODO" src/
 src/scamcheck/signals.py:13:# TODO: move to config/policy.toml once the policy loader exists.
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -nE ">=|<=| > | < " src/scamcheck/rules.py
+host:scam-payment-risk-check user$ grep -nE ">=|<=| > | < " src/scamcheck/rules.py
 32:    """The most severe decision (ALLOW < WARN < HOLD); ALLOW if the list is empty."""
 62:    if signals.on_active_call and signals.new_payee and amount >= policy.high_value_amount:
 79:    high_value = amount >= policy.high_value_amount
 93:    if signals.amount_ratio is not None and signals.amount_ratio >= policy.unusual_ratio:
 109:    if signals.new_payee and age is not None and age < policy.young_account_days:
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -nE "4999|5000|5001|999|1000|29|30|31" tests/test_rules.py tests/test_engine.py
+host:scam-payment-risk-check user$ grep -nE "4999|5000|5001|999|1000|29|30|31" tests/test_rules.py tests/test_engine.py
 tests/test_rules.py:23:    high_value_amount=Decimal("5000"),
 tests/test_rules.py:24:    abstain_amount=Decimal("1000"),
 tests/test_rules.py:26:    young_account_days=30,
@@ -250,10 +250,10 @@ tests/test_engine.py:155:    response = assess(raw_request("cust-001", unknown, 
 tests/test_engine.py:161:    response = assess(raw_request("ghost", KNOWN_001, "999.99"))
 tests/test_engine.py:191:    response = assess(raw_request("cust-001", KNOWN_001, "1000000.01"))
 tests/test_engine.py:217:        raw_request("ghost", KNOWN_001, "5000.00"),
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ ls tests
+host:scam-payment-risk-check user$ ls tests
 __pycache__			test_generate_reference_data.py	test_reference.py		test_schemas.py			test_version.py
 test_engine.py			test_policy.py			test_rules.py			test_signals.py
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/pytest -q
+host:scam-payment-risk-check user$ .venv/bin/pytest -q
 .....F...............................F.......................................................FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF......FFFFFFFFFFFF [ 89%]
 ...................                                                                                                                                         [100%]
 ============================================================================ FAILURES =============================================================================
@@ -2385,11 +2385,11 @@ FAILED tests/test_signals.py::test_unknown_payee_is_incomplete_and_name_unavaila
 FAILED tests/test_signals.py::test_mule_list_applies_even_if_payee_is_not_in_reference - TypeError: validate_request() missing 1 required positional argument: 'max_amount'
 FAILED tests/test_signals.py::test_unknown_customer_and_payee - TypeError: validate_request() missing 1 required positional argument: 'max_amount'
 58 failed, 116 passed in 1.44s
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/pytest -q
+host:scam-payment-risk-check user$ .venv/bin/pytest -q
 ........................................................................................................................................................... [ 86%]
 ........................                                                                                                                                    [100%]
 179 passed in 0.84s
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ git diff src/
+host:scam-payment-risk-check user$ git diff src/
 diff --git a/src/scamcheck/reference.py b/src/scamcheck/reference.py
 index 8bfa46f..2b8465b 100644
 --- a/src/scamcheck/reference.py
@@ -2491,7 +2491,7 @@ index cdfaceb..5779a3f 100644
      except ValidationError as exc:
          return _issues_from(exc) or [_issue("INVALID_REQUEST", "")]
      except Exception:  # contract: validation must never raise
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -rn "tomllib\|policy.toml\|def load" src/scamcheck/
+host:scam-payment-risk-check user$ grep -rn "tomllib\|policy.toml\|def load" src/scamcheck/
 src/scamcheck/signals.py:13:# TODO: move to config/policy.toml once the policy loader exists.
 src/scamcheck/policy.py:1:"""Load and validate config/policy.toml."""
 src/scamcheck/policy.py:6:import tomllib
@@ -2501,19 +2501,19 @@ src/scamcheck/policy.py:59:        raw = tomllib.loads(text, parse_float=Decimal
 src/scamcheck/policy.py:60:    except (tomllib.TOMLDecodeError, ValueError) as exc:
 Binary file src/scamcheck/__pycache__/policy.cpython-312.pyc matches
 src/scamcheck/reference.py:192:def load_reference(paths: ReferencePaths | None = None) -> ReferenceData:
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python -c "from scamcheck.rules import load_policy; load_policy('config/does-not-exist.toml')"
+host:scam-payment-risk-check user$ .venv/bin/python -c "from scamcheck.rules import load_policy; load_policy('config/does-not-exist.toml')"
 Traceback (most recent call last):
   File "<string>", line 1, in <module>
-ImportError: cannot import name 'load_policy' from 'scamcheck.rules' (/Users/siva/MyApps/scam-payment-risk-check/src/scamcheck/rules.py)
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ git log --reverse --format="%cd" --date=format:"%H:%M" | head -1
+ImportError: cannot import name 'load_policy' from 'scamcheck.rules' (/Users/user/MyApps/scam-payment-risk-check/src/scamcheck/rules.py)
+host:scam-payment-risk-check user$ git log --reverse --format="%cd" --date=format:"%H:%M" | head -1
 15:35
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ ls scripts/ sample-data/
+host:scam-payment-risk-check user$ ls scripts/ sample-data/
 sample-data/:
 README.md	reference
 
 scripts/:
 __pycache__			generate_reference_data.py	generate_training_data.py	README.md
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "scenario\|seed\|split" scripts/generate_training_data.py scripts/train_model.py
+host:scam-payment-risk-check user$ grep -n "scenario\|seed\|split" scripts/generate_training_data.py scripts/train_model.py
 scripts/generate_training_data.py:1:"""Generate the SYNTHETIC training set for the risk model (seeded, deterministic).
 scripts/generate_training_data.py:5:Population: 5000 payments, seed 42. About 15% are scams (label 1), the rest genuine (label 0).
 scripts/generate_training_data.py:6:This training set is separate from the evaluation scenarios, which are written by hand later.
@@ -2528,7 +2528,7 @@ scripts/generate_training_data.py:193:    out.write_text(render(generate_rows(co
 scripts/generate_training_data.py:200:    parser.add_argument("--seed", type=int, default=SEED)
 scripts/generate_training_data.py:203:    print(f"wrote {generate(args.out, args.count, args.seed)}")
 grep: scripts/train_model.py: No such file or directory
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "scenario\|seed\|split" scripts/generate_training_data.py scripts/train_model.py
+host:scam-payment-risk-check user$ grep -n "scenario\|seed\|split" scripts/generate_training_data.py scripts/train_model.py
 scripts/generate_training_data.py:1:"""Generate the SYNTHETIC training set for the risk model (seeded, deterministic).
 scripts/generate_training_data.py:5:Population: 5000 payments, seed 42. About 15% are scams (label 1), the rest genuine (label 0).
 scripts/generate_training_data.py:6:This training set is separate from the evaluation scenarios, which are written by hand later.
@@ -2548,7 +2548,7 @@ scripts/train_model.py:71:def split_indices(
 scripts/train_model.py:72:    n: int, seed: int = SEED, held_out: float = HELD_OUT_SHARE
 scripts/train_model.py:75:    random.Random(seed).shuffle(order)
 scripts/train_model.py:163:    train_idx, held_idx = split_indices(len(x))
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python - <<'EOF'
+host:scam-payment-risk-check user$ .venv/bin/python - <<'EOF'
 > import json
 > m = json.load(open("models/risk_model_v1.json"))
 > print("model_version:", m.get("model_version"))
@@ -2591,12 +2591,12 @@ metrics: {
   "recall": 0.6333
  }
 }
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ ls models/
+host:scam-payment-risk-check user$ ls models/
 README.md		risk_model_v1.json	risk_model_v1.sha256
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ shasum -a 256 models/risk_model_v1.json
+host:scam-payment-risk-check user$ shasum -a 256 models/risk_model_v1.json
 cb2e94f956bb04a56ff1935d4ad35f761e1789c9d97868c153b8d2ec25670908  models/risk_model_v1.json
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ less models/risk_model_v1.sha256 
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "exp\|def " src/scamcheck/model.py
+host:scam-payment-risk-check user$ less models/risk_model_v1.sha256 
+host:scam-payment-risk-check user$ grep -n "exp\|def " src/scamcheck/model.py
 5:(``ModelRuntime.health()`` explains why) instead of raising at request time.
 73:    def __init__(self, path: Path, code: ModelErrorCode, message: str) -> None:
 80:def sha256_hex(data: bytes) -> str:
@@ -2616,14 +2616,14 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n "exp\|def " src/scamc
 218:    def from_path(cls, path: Path | str | None = None) -> ModelRuntime:
 226:            code, detail = "MODEL_LOAD_ERROR", "unexpected error while loading the model"
 234:def default_runtime() -> ModelRuntime:
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python -c "from scamcheck.model import _sigmoid as s; print(s(1000), s(-1000), s(0))"
+host:scam-payment-risk-check user$ .venv/bin/python -c "from scamcheck.model import _sigmoid as s; print(s(1000), s(-1000), s(0))"
 Traceback (most recent call last):
   File "<string>", line 1, in <module>
-ImportError: cannot import name '_sigmoid' from 'scamcheck.model' (/Users/siva/MyApps/scam-payment-risk-check/src/scamcheck/model.py). Did you mean: 'sigmoid'?
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ less src/scamcheck/model.py 
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python -c "from scamcheck.model import sigmoid as s; print(s(1000), s(-1000), s(0))"
+ImportError: cannot import name '_sigmoid' from 'scamcheck.model' (/Users/user/MyApps/scam-payment-risk-check/src/scamcheck/model.py). Did you mean: 'sigmoid'?
+host:scam-payment-risk-check user$ less src/scamcheck/model.py 
+host:scam-payment-risk-check user$ .venv/bin/python -c "from scamcheck.model import sigmoid as s; print(s(1000), s(-1000), s(0))"
 1.0 0.0 0.5
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n -i "degrad\|fail_safe\|rules_only\|health" src/scamcheck/engine.py src/scamcheck/model.py
+host:scam-payment-risk-check user$ grep -n -i "degrad\|fail_safe\|rules_only\|health" src/scamcheck/engine.py src/scamcheck/model.py
 src/scamcheck/engine.py:4:DEGRADED_RULES_ONLY mode (model unavailable): rules only, plus a fail-safe HOLD for any risk
 src/scamcheck/engine.py:79:def _fail_safe(meta: _Meta, code: str, detail: str, policy_version: str) -> DecisionResponse:
 src/scamcheck/engine.py:107:def _degraded_outcome(signals: Signals, amount: Decimal, policy: Policy) -> _ModelOutcome:
@@ -2645,7 +2645,7 @@ src/scamcheck/model.py:215:        return ModelHealth("degraded", self.reason or
 src/scamcheck/model.py:219:        """Load the model; on any failure return a degraded runtime and log it once."""
 src/scamcheck/model.py:228:            "Risk model unavailable (%s: %s); running in DEGRADED_RULES_ONLY mode", code, detail
 src/scamcheck/model.py:235:    """The process-wide runtime, loaded once (so a degrade is logged once)."""
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ cat > /tmp/degrade_check.py <<'EOF'
+host:scam-payment-risk-check user$ cat > /tmp/degrade_check.py <<'EOF'
 > import json, re, tomllib, pathlib
 > from scamcheck.engine import assess
 > ref = pathlib.Path("sample-data/reference")
@@ -2673,17 +2673,17 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ cat > /tmp/degrade_check.py <
 > print("decision:", r.decision, "| mode:", r.mode, "| score:", r.risk_score)
 > print("reasons:", [x.code for x in r.reasons])
 > EOF
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python /tmp/degrade_check.py
+host:scam-payment-risk-check user$ .venv/bin/python /tmp/degrade_check.py
 decision: HOLD | mode: NORMAL | score: 0.9892
 reasons: ['R04_PAYEE_NAME_MISMATCH', 'R05_UNUSUAL_AMOUNT', 'M_AMOUNT_ABOVE_TYPICAL', 'M_NEW_PAYEE']
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ echo " " >> models/risk_model_v1.json
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python /tmp/degrade_check.py
+host:scam-payment-risk-check user$ echo " " >> models/risk_model_v1.json
+host:scam-payment-risk-check user$ .venv/bin/python /tmp/degrade_check.py
 Risk model unavailable (MODEL_INTEGRITY_FAILED: checksum does not match the artifact); running in DEGRADED_RULES_ONLY mode
 decision: HOLD | mode: DEGRADED_RULES_ONLY | score: None
 reasons: ['R04_PAYEE_NAME_MISMATCH', 'R05_UNUSUAL_AMOUNT', 'DEGRADED_FAILSAFE_HOLD']
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ git checkout models/risk_model_v1.json
+host:scam-payment-risk-check user$ git checkout models/risk_model_v1.json
 error: pathspec 'models/risk_model_v1.json' did not match any file(s) known to git
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ cat > /tmp/scenarios_review.py <<'EOF'
+host:scam-payment-risk-check user$ cat > /tmp/scenarios_review.py <<'EOF'
 > import json
 > from scamcheck.engine import assess
 > rows = [json.loads(l) for l in open("sample-data/scenarios.jsonl") if l.strip()]
@@ -2704,7 +2704,7 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ cat > /tmp/scenarios_review.p
 >           f"amt={str(r.get('amount','-')):>9} flags={flags or '-':<3} expected={exp:<10} actual={actual:<7} {reasons}")
 >     print(f"      {s.get('description','')}")
 > EOF
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python /tmp/scenarios_review.py
+host:scam-payment-risk-check user$ .venv/bin/python /tmp/scenarios_review.py
 38 scenarios
 
 ok  S01        impersonation    scam=True  must_hold=True  amt=  4800.00 flags=CD  expected=HOLD       actual=HOLD    R03_ON_CALL_NEW_PAYEE_HIGH_VALUE,R05_UNUSUAL_AMOUNT,M_AMOUNT_ABOVE_TYPICAL,M_NEW_PAYEE
@@ -2786,7 +2786,7 @@ Traceback (most recent call last):
     f"amt={str(r.get('amount','-')):>9} flags={flags or '-':<3} expected={exp:<10} actual={actual:<7} {reasons}")
                ^^^^^
 AttributeError: 'str' object has no attribute 'get'
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ git diff HEAD --stat
+host:scam-payment-risk-check user$ git diff HEAD --stat
  Makefile                |  2 +-
  config/policy.toml      |  7 +++++++
  evidence/decisions.md   |  7 +++++++
@@ -2797,7 +2797,7 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ git diff HEAD --stat
  tests/test_policy.py    | 12 ++++++++++++
  tests/test_rules.py     |  3 ++-
  9 files changed, 51 insertions(+), 2 deletions(-)
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ head -40 evidence/eval-report.md
+host:scam-payment-risk-check user$ head -40 evidence/eval-report.md
 # Evaluation report
 
 SYNTHETIC scenarios only (`sample-data/scenarios.jsonl`).
@@ -2838,7 +2838,7 @@ Generated by `make eval`; do not edit.
 | S02 | impersonation | yes | WARN/HOLD | HOLD | 0.9634 | R05_UNUSUAL_AMOUNT, M_AMOUNT_ABOVE_TYPICAL, M_NEW_PAYEE | PASS |
 | S03 | impersonation | yes | HOLD (must hold) | HOLD | 0.9376 | R02_REMOTE_ACCESS_NEW_PAYEE, M_NEW_PAYEE, M_REMOTE_ACCESS | PASS |
 | S04 | impersonation | yes | HOLD (must hold) | HOLD | 0.9821 | R03_ON_CALL_NEW_PAYEE_HIGH_VALUE, R05_UNUSUAL_AMOUNT, M_AMOUNT_ABOVE_TYPICAL, M_NEW_PAYEE | PASS |
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ head -40 evidence/eval-report.md
+host:scam-payment-risk-check user$ head -40 evidence/eval-report.md
 # Evaluation report
 
 SYNTHETIC scenarios only (`sample-data/scenarios.jsonl`).
@@ -2879,7 +2879,7 @@ Generated by `make eval`; do not edit.
 | S02 | impersonation | yes | WARN/HOLD | HOLD | 0.9634 | R05_UNUSUAL_AMOUNT, M_AMOUNT_ABOVE_TYPICAL, M_NEW_PAYEE | PASS |
 | S03 | impersonation | yes | HOLD (must hold) | HOLD | 0.9376 | R02_REMOTE_ACCESS_NEW_PAYEE, M_NEW_PAYEE, M_REMOTE_ACCESS | PASS |
 | S04 | impersonation | yes | HOLD (must hold) | HOLD | 0.9821 | R03_ON_CALL_NEW_PAYEE_HIGH_VALUE, R05_UNUSUAL_AMOUNT, M_AMOUNT_ABOVE_TYPICAL, M_NEW_PAYEE | PASS |
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python /tmp/scenarios_review.py
+host:scam-payment-risk-check user$ .venv/bin/python /tmp/scenarios_review.py
 39 scenarios
 
 ok  S01        impersonation    scam=True  must_hold=True  amt=  4800.00 flags=CD  expected=HOLD       actual=HOLD    R03_ON_CALL_NEW_PAYEE_HIGH_VALUE,R05_UNUSUAL_AMOUNT,M_AMOUNT_ABOVE_TYPICAL,M_NEW_PAYEE
@@ -2963,12 +2963,12 @@ Traceback (most recent call last):
     f"amt={str(r.get('amount','-')):>9} flags={flags or '-':<3} expected={exp:<10} actual={actual:<7} {reasons}")
                ^^^^^
 AttributeError: 'str' object has no attribute 'get'
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ Label changes from my review:
+host:scam-payment-risk-check user$ Label changes from my review:
 -bash: Label: command not found
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ - S13 investment: allowed set must be ALLOW, not WARN/HOLD.
+host:scam-payment-risk-check user$ - S13 investment: allowed set must be ALLOW, not WARN/HOLD.
 -bash: -: command not found
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ Change only these labels, rerun make eval, and show the results. Do not change rules or thresholds.
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python - <<'EOF'
+host:scam-payment-risk-check user$ Change only these labels, rerun make eval, and show the results. Do not change rules or thresholds.
+host:scam-payment-risk-check user$ .venv/bin/python - <<'EOF'
 > import json
 > rows = [json.loads(l) for l in open("sample-data/scenarios.jsonl") if l.strip()]
 > scam = next(s for s in rows if s.get("must_hold"))
@@ -2982,7 +2982,7 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ .venv/bin/python - <<'EOF'
 > EOF
 Search the logs for these. They must NOT appear:
   account: 70025691 | amount: 4800.00 | payee name: Sam Mockwell
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ SCAMCHECK_AUDIT_PATH=/tmp/audit.jsonl make run-api 2>&1 | tee /tmp/api.log
+host:scam-payment-risk-check user$ SCAMCHECK_AUDIT_PATH=/tmp/audit.jsonl make run-api 2>&1 | tee /tmp/api.log
 .venv/bin/uvicorn scamcheck.api:app --host 127.0.0.1 --port 8000
 INFO:     Started server process [44369]
 INFO:     Waiting for application startup.
@@ -2994,36 +2994,36 @@ INFO:     127.0.0.1:57173 - "POST /v1/assess HTTP/1.1" 200 OK
 INFO:     127.0.0.1:57176 - "POST /v1/assess HTTP/1.1" 422 Unprocessable Entity
 INFO:     127.0.0.1:57178 - "GET /v1/audit?limit=5 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:57239 - "POST /v1/demo/model-failure HTTP/1.1" 403 Forbidden
-^CHalasyas-MacBook-Pro:scam-payment-risk-check siva$ 
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ curl -s -X POST localhost:8000/v1/assess -H "Content-Type: application/json" -d @/tmp/scam.json
-{"decision_id":"d254067c-7c8c-4667-a936-155c9be23ab0","request_id":"S01","decision":"HOLD","risk_score":0.9626,"reasons":[{"code":"R03_ON_CALL_NEW_PAYEE_HIGH_VALUE","detail":"High-value payment to a new payee during an active call (high value is 3000 AUD or more)."},{"code":"R05_UNUSUAL_AMOUNT","detail":"Amount is at least 5 times the customer's typical payment."},{"code":"M_AMOUNT_ABOVE_TYPICAL","detail":"Amount is high compared with typical payments."},{"code":"M_NEW_PAYEE","detail":"Payment to a payee the customer has not paid before."}],"mode":"NORMAL","model_version":"risk_model_v1","policy_version":"2026.11.1","latency_ms":0.473}Halasyas-MacBook-Pro:scam-payment-risk-check siva$ 
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ curl -s -w "\nHTTP %{http_code}\n" -X POST localhost:8000/v1/assess -H "Content-Type: application/json" -d @/tmp/invalid.json
+^Chost:scam-payment-risk-check user$ 
+host:scam-payment-risk-check user$ curl -s -X POST localhost:8000/v1/assess -H "Content-Type: application/json" -d @/tmp/scam.json
+{"decision_id":"d254067c-7c8c-4667-a936-155c9be23ab0","request_id":"S01","decision":"HOLD","risk_score":0.9626,"reasons":[{"code":"R03_ON_CALL_NEW_PAYEE_HIGH_VALUE","detail":"High-value payment to a new payee during an active call (high value is 3000 AUD or more)."},{"code":"R05_UNUSUAL_AMOUNT","detail":"Amount is at least 5 times the customer's typical payment."},{"code":"M_AMOUNT_ABOVE_TYPICAL","detail":"Amount is high compared with typical payments."},{"code":"M_NEW_PAYEE","detail":"Payment to a payee the customer has not paid before."}],"mode":"NORMAL","model_version":"risk_model_v1","policy_version":"2026.11.1","latency_ms":0.473}host:scam-payment-risk-check user$ 
+host:scam-payment-risk-check user$ curl -s -w "\nHTTP %{http_code}\n" -X POST localhost:8000/v1/assess -H "Content-Type: application/json" -d @/tmp/invalid.json
 {"decision_id":"49b2ce4b-1c43-460b-8391-ae4e0a6500bb","request_id":"G01","decision":"REJECT","risk_score":null,"reasons":[{"code":"INVALID_BSB","detail":"payee.bsb: BSB must be exactly 6 digits."}],"mode":"NORMAL","model_version":null,"policy_version":"2026.11.1","latency_ms":0.22}
 HTTP 422
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n -e "ACCOUNT_NUMBER" -e "AMOUNT" -e "PAYEE_NAME" /tmp/api.log
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ tail -5 /tmp/api.log
+host:scam-payment-risk-check user$ grep -n -e "ACCOUNT_NUMBER" -e "AMOUNT" -e "PAYEE_NAME" /tmp/api.log
+host:scam-payment-risk-check user$ tail -5 /tmp/api.log
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 {"ts": "2026-11-07T06:08:31.343+00:00", "level": "INFO", "logger": "scamcheck.api", "message": "decision", "decision_id": "d254067c-7c8c-4667-a936-155c9be23ab0", "decision": "HOLD", "mode": "NORMAL", "latency_ms": 0.473}
 INFO:     127.0.0.1:57173 - "POST /v1/assess HTTP/1.1" 200 OK
 {"ts": "2026-11-07T06:09:06.344+00:00", "level": "INFO", "logger": "scamcheck.api", "message": "decision", "decision_id": "49b2ce4b-1c43-460b-8391-ae4e0a6500bb", "decision": "REJECT", "mode": "NORMAL", "latency_ms": 0.22}
 INFO:     127.0.0.1:57176 - "POST /v1/assess HTTP/1.1" 422 Unprocessable Entity
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ curl -s "localhost:8000/v1/audit?limit=5"
-{"count":2,"records":[{"amount":null,"customer_id":"cust-005","decision":"REJECT","decision_id":"49b2ce4b-1c43-460b-8391-ae4e0a6500bb","latency_ms":0.22,"mode":"NORMAL","model_version":null,"payee_account_masked":"*****936","policy_version":"2026.11.1","prev_hash":"7d62f8c1d66797954f51f41ae34d93be00ffbb84e8237ebb3e29a1190fca4e73","reasons":[{"code":"INVALID_BSB","detail":"payee.bsb: BSB must be exactly 6 digits."}],"record_hash":"404e78087041c8962c023460b0f4d57c8251287d3780f3fd11657fef2ffb1133","request_hash":"b3996019980d93d8d31c6b16e7842ca936449049bf5e46e94ad894ed45f6d343","risk_score":null,"ts":"2026-11-07T06:09:06.342+00:00"},{"amount":"4800.00","customer_id":"cust-002","decision":"HOLD","decision_id":"d254067c-7c8c-4667-a936-155c9be23ab0","latency_ms":0.473,"mode":"NORMAL","model_version":"risk_model_v1","payee_account_masked":"*****691","policy_version":"2026.11.1","prev_hash":"0000000000000000000000000000000000000000000000000000000000000000","reasons":[{"code":"R03_ON_CALL_NEW_PAYEE_HIGH_VALUE","detail":"High-value payment to a new payee during an active call (high value is 3000 AUD or more)."},{"code":"R05_UNUSUAL_AMOUNT","detail":"Amount is at least 5 times the customer's typical payment."},{"code":"M_AMOUNT_ABOVE_TYPICAL","detail":"Amount is high compared with typical payments."},{"code":"M_NEW_PAYEE","detail":"Payment to a payee the customer has not paid before."}],"record_hash":"7d62f8c1d66797954f51f41ae34d93be00ffbb84e8237ebb3e29a1190fca4e73","request_hash":"e90b3d0edcb7c407dc9c4a3f8c2ff963417e440d118c267bd072674ad3e50242","risk_score":0.9626,"ts":"2026-11-07T06:08:31.342+00:00"}]}Halasyas-MacBook-Pro:scam-payment-risk-check siva$ SCAMCHECK_AUDIT_PATH=/tmp/audit.jsonl .venv/bin/scamcheck verify-audit
+host:scam-payment-risk-check user$ curl -s "localhost:8000/v1/audit?limit=5"
+{"count":2,"records":[{"amount":null,"customer_id":"cust-005","decision":"REJECT","decision_id":"49b2ce4b-1c43-460b-8391-ae4e0a6500bb","latency_ms":0.22,"mode":"NORMAL","model_version":null,"payee_account_masked":"*****936","policy_version":"2026.11.1","prev_hash":"7d62f8c1d66797954f51f41ae34d93be00ffbb84e8237ebb3e29a1190fca4e73","reasons":[{"code":"INVALID_BSB","detail":"payee.bsb: BSB must be exactly 6 digits."}],"record_hash":"404e78087041c8962c023460b0f4d57c8251287d3780f3fd11657fef2ffb1133","request_hash":"b3996019980d93d8d31c6b16e7842ca936449049bf5e46e94ad894ed45f6d343","risk_score":null,"ts":"2026-11-07T06:09:06.342+00:00"},{"amount":"4800.00","customer_id":"cust-002","decision":"HOLD","decision_id":"d254067c-7c8c-4667-a936-155c9be23ab0","latency_ms":0.473,"mode":"NORMAL","model_version":"risk_model_v1","payee_account_masked":"*****691","policy_version":"2026.11.1","prev_hash":"0000000000000000000000000000000000000000000000000000000000000000","reasons":[{"code":"R03_ON_CALL_NEW_PAYEE_HIGH_VALUE","detail":"High-value payment to a new payee during an active call (high value is 3000 AUD or more)."},{"code":"R05_UNUSUAL_AMOUNT","detail":"Amount is at least 5 times the customer's typical payment."},{"code":"M_AMOUNT_ABOVE_TYPICAL","detail":"Amount is high compared with typical payments."},{"code":"M_NEW_PAYEE","detail":"Payment to a payee the customer has not paid before."}],"record_hash":"7d62f8c1d66797954f51f41ae34d93be00ffbb84e8237ebb3e29a1190fca4e73","request_hash":"e90b3d0edcb7c407dc9c4a3f8c2ff963417e440d118c267bd072674ad3e50242","risk_score":0.9626,"ts":"2026-11-07T06:08:31.342+00:00"}]}host:scam-payment-risk-check user$ SCAMCHECK_AUDIT_PATH=/tmp/audit.jsonl .venv/bin/scamcheck verify-audit
 {
   "ok": true,
   "records": 2,
   "message": "chain intact (2 records)",
   "first_bad_line": null
 }
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ cp /tmp/audit.jsonl /tmp/audit_tampered.jsonl && sed -i '' '1s/"HOLD"/"ALLOW"/' /tmp/audit_tampered.jsonl
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ SCAMCHECK_AUDIT_PATH=/tmp/audit_tampered.jsonl .venv/bin/scamcheck verify-audit
+host:scam-payment-risk-check user$ cp /tmp/audit.jsonl /tmp/audit_tampered.jsonl && sed -i '' '1s/"HOLD"/"ALLOW"/' /tmp/audit_tampered.jsonl
+host:scam-payment-risk-check user$ SCAMCHECK_AUDIT_PATH=/tmp/audit_tampered.jsonl .venv/bin/scamcheck verify-audit
 {
   "ok": false,
   "records": 0,
   "message": "record_hash does not match the record contents (record edited)",
   "first_bad_line": 1
 }
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -rn "AUDIT_UNAVAILABLE" src/ tests/
+host:scam-payment-risk-check user$ grep -rn "AUDIT_UNAVAILABLE" src/ tests/
 src/scamcheck/health.py:45:        reasons.append("AUDIT_UNAVAILABLE")
 Binary file src/scamcheck/__pycache__/engine.cpython-312.pyc matches
 Binary file src/scamcheck/__pycache__/health.cpython-312.pyc matches
@@ -3040,8 +3040,8 @@ tests/test_engine_audit.py:70:    assert codes(held) == ["AUDIT_UNAVAILABLE", *c
 tests/test_engine_audit.py:82:    assert codes(response) == ["AUDIT_UNAVAILABLE", "AMOUNT_NOT_POSITIVE"]
 tests/test_engine_audit.py:95:    assert codes(response)[0] == "AUDIT_UNAVAILABLE"
 tests/test_engine_audit.py:105:    assert codes(response)[0] == "AUDIT_UNAVAILABLE"
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ touch /tmp/readonly.jsonl && chmod 444 /tmp/readonly.jsonl
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ SCAMCHECK_AUDIT_PATH=/tmp/readonly.jsonl .venv/bin/scamcheck assess --file /tmp/genuine.json
+host:scam-payment-risk-check user$ touch /tmp/readonly.jsonl && chmod 444 /tmp/readonly.jsonl
+host:scam-payment-risk-check user$ SCAMCHECK_AUDIT_PATH=/tmp/readonly.jsonl .venv/bin/scamcheck assess --file /tmp/genuine.json
 Audit write failed (AuditError); decision forced to HOLD
 {
   "decision_id": "6b29f499-306f-420a-a2c1-f74f40d6aad6",
@@ -3063,10 +3063,10 @@ Audit write failed (AuditError); decision forced to HOLD
   "policy_version": "2026.11.1",
   "latency_ms": 6.725
 }
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ curl -s -w "\nHTTP %{http_code}\n" -X POST localhost:8000/v1/demo/model-failure -H "Content-Type: application/json" -d '{"enabled": true}'
+host:scam-payment-risk-check user$ curl -s -w "\nHTTP %{http_code}\n" -X POST localhost:8000/v1/demo/model-failure -H "Content-Type: application/json" -d '{"enabled": true}'
 {"detail":"Demo mode is off. Set SCAMCHECK_DEMO_MODE=1 to enable it."}
 HTTP 403
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ cat Dockerfile
+host:scam-payment-risk-check user$ cat Dockerfile
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -3098,7 +3098,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 
 # One worker: the loaded model and the demo switch live in process memory.
 CMD ["uvicorn", "scamcheck.api:app", "--host", "0.0.0.0", "--port", "8000"]
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ cat .dockerignore
+host:scam-payment-risk-check user$ cat .dockerignore
 .git
 .github
 .venv
@@ -3114,7 +3114,7 @@ evidence
 sample-data/training
 .env
 .env.*
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose up --build
+host:scam-payment-risk-check user$ docker compose up --build
 [+] Building 1.1s (18/18) FINISHED                                                                                                                 
  => [internal] load local bake definitions                                                                                                    0.0s
  => => reading from stdin 562B                                                                                                                0.0s
@@ -3166,9 +3166,9 @@ scamcheck-1  | INFO:     Application shutdown complete.
 scamcheck-1  | INFO:     Finished server process [1]
 Container scam-payment-risk-check-scamcheck-1 Stopped 
 scamcheck-1 exited with code 0
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose exec $(docker compose ps --services | head -1) id
+host:scam-payment-risk-check user$ docker compose exec $(docker compose ps --services | head -1) id
 requires at least 2 arg(s), only received 1
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose up -d --build
+host:scam-payment-risk-check user$ docker compose up -d --build
 [+] Building 2.9s (18/18) FINISHED                                                                                                                 
  => [internal] load local bake definitions                                                                                                    0.0s
  => => reading from stdin 562B                                                                                                                0.0s
@@ -3203,20 +3203,20 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose up -d --build
 [+] up 2/2
  ✔ Image scamcheck:local                         Built                                                                                         3.1s
  ✔ Container scam-payment-risk-check-scamcheck-1 Started                                                                                       0.5s
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose exec $(docker compose ps --services | head -1) id
+host:scam-payment-risk-check user$ docker compose exec $(docker compose ps --services | head -1) id
 uid=10001(app) gid=10001(app) groups=10001(app)
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ requires at least 2 arg(s), only received 1
+host:scam-payment-risk-check user$ requires at least 2 arg(s), only received 1
 -bash: syntax error near unexpected token `('
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose config --services
+host:scam-payment-risk-check user$ docker compose config --services
 scamcheck
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose exec api id
+host:scam-payment-risk-check user$ docker compose exec api id
 service "api" is not running
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose exec scamcheck id
+host:scam-payment-risk-check user$ docker compose exec scamcheck id
 uid=10001(app) gid=10001(app) groups=10001(app)
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose ps -a
+host:scam-payment-risk-check user$ docker compose ps -a
 NAME                                  IMAGE             COMMAND                  SERVICE     CREATED         STATUS                   PORTS
 scam-payment-risk-check-scamcheck-1   scamcheck:local   "uvicorn scamcheck.a…"   scamcheck   2 minutes ago   Up 2 minutes (healthy)   127.0.0.1:8000->8000/tcp
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose logs --tail 40
+host:scam-payment-risk-check user$ docker compose logs --tail 40
 scamcheck-1  | INFO:     Started server process [1]
 scamcheck-1  | INFO:     Waiting for application startup.
 scamcheck-1  | INFO:     Application startup complete.
@@ -3226,18 +3226,18 @@ scamcheck-1  | INFO:     127.0.0.1:49344 - "GET /health HTTP/1.1" 200 OK
 scamcheck-1  | INFO:     127.0.0.1:34916 - "GET /health HTTP/1.1" 200 OK
 scamcheck-1  | INFO:     127.0.0.1:54688 - "GET /health HTTP/1.1" 200 OK
 scamcheck-1  | INFO:     127.0.0.1:33390 - "GET /health HTTP/1.1" 200 OK
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose down
+host:scam-payment-risk-check user$ docker compose down
 [+] down 2/2
  ✔ Container scam-payment-risk-check-scamcheck-1 Removed                                                                                       0.8s
  ✔ Network scam-payment-risk-check_default       Removed                                                                                       0.1s
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ gh run list --limit 3
+host:scam-payment-risk-check user$ gh run list --limit 3
 no runs found
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ gh run watch
+host:scam-payment-risk-check user$ gh run watch
 found no in progress runs to watch
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ gh run list --limit 3
+host:scam-payment-risk-check user$ gh run list --limit 3
 STATUS  TITLE                                                WORKFLOW  BRANCH  EVENT  ID           ELAPSED  AGE                   
 *       ci: docker image and GitHub Actions verify workflow  ci        main    push   42346647521  3s       less than a minute ago
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ gh run watch
+host:scam-payment-risk-check user$ gh run watch
 ? Select a workflow run * ci: docker image and GitHub Actions verify workflow, ci [main] 9s ago
 ✓ main ci · 42346647521
 Triggered via push less than a minute ago
@@ -3262,12 +3262,12 @@ verify: .github#1
 
 
 ✓ Run ci (42346647521) completed with 'success'
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ 
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ gh run view --log-failed
+host:scam-payment-risk-check user$ 
+host:scam-payment-risk-check user$ gh run view --log-failed
 ? Select a workflow run ✓ ci: docker image and GitHub Actions verify workflow, ci [main] 40s ago
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n -i "concurren" evidence/operate.md
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose down
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ SCAMCHECK_DEMO_MODE=1 SCAMCHECK_AUDIT_PATH=/tmp/ui-audit.jsonl make run-api
+host:scam-payment-risk-check user$ grep -n -i "concurren" evidence/operate.md
+host:scam-payment-risk-check user$ docker compose down
+host:scam-payment-risk-check user$ SCAMCHECK_DEMO_MODE=1 SCAMCHECK_AUDIT_PATH=/tmp/ui-audit.jsonl make run-api
 .venv/bin/uvicorn scamcheck.api:app --host 127.0.0.1 --port 8000
 INFO:     Started server process [45884]
 INFO:     Waiting for application startup.
@@ -3276,7 +3276,7 @@ ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 800
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
 make: *** [run-api] Error 3
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ SCAMCHECK_DEMO_MODE=1 SCAMCHECK_AUDIT_PATH=/tmp/ui-audit.jsonl make run-api
+host:scam-payment-risk-check user$ SCAMCHECK_DEMO_MODE=1 SCAMCHECK_AUDIT_PATH=/tmp/ui-audit.jsonl make run-api
 .venv/bin/uvicorn scamcheck.api:app --host 127.0.0.1 --port 8000
 INFO:     Started server process [46144]
 INFO:     Waiting for application startup.
@@ -3285,8 +3285,8 @@ ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 800
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
 make: *** [run-api] Error 3
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ docker compose down
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ SCAMCHECK_DEMO_MODE=1 SCAMCHECK_AUDIT_PATH=/tmp/ui-audit.jsonl make run-api
+host:scam-payment-risk-check user$ docker compose down
+host:scam-payment-risk-check user$ SCAMCHECK_DEMO_MODE=1 SCAMCHECK_AUDIT_PATH=/tmp/ui-audit.jsonl make run-api
 .venv/bin/uvicorn scamcheck.api:app --host 127.0.0.1 --port 8000
 INFO:     Started server process [46228]
 INFO:     Waiting for application startup.
@@ -3328,7 +3328,7 @@ INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [46228]
 
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ SCAMCHECK_AUDIT_PATH=/tmp/ui-audit.jsonl make run-api
+host:scam-payment-risk-check user$ SCAMCHECK_AUDIT_PATH=/tmp/ui-audit.jsonl make run-api
 .venv/bin/uvicorn scamcheck.api:app --host 127.0.0.1 --port 8000
 INFO:     Started server process [46313]
 INFO:     Waiting for application startup.
@@ -3354,7 +3354,7 @@ INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [46313]
 
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ make verify 2>&1 | tee /tmp/verify.txt
+host:scam-payment-risk-check user$ make verify 2>&1 | tee /tmp/verify.txt
 .venv/bin/ruff check .
 All checks passed!
 .venv/bin/ruff format --check .
@@ -3362,7 +3362,7 @@ All checks passed!
 .venv/bin/pytest
 ============================= test session starts ==============================
 platform darwin -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0
-rootdir: /Users/siva/MyApps/scam-payment-risk-check
+rootdir: /Users/user/MyApps/scam-payment-risk-check
 configfile: pyproject.toml
 testpaths: tests
 plugins: anyio-4.16.0
@@ -3392,7 +3392,7 @@ tests/test_version.py .                                                  [100%]
 
 =============================== warnings summary ===============================
 .venv/lib/python3.12/site-packages/fastapi/testclient.py:1
-  /Users/siva/MyApps/scam-payment-risk-check/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  /Users/user/MyApps/scam-payment-risk-check/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
@@ -3406,11 +3406,11 @@ PASS  5. Two runs give identical decisions: 39/39 scenarios identical across two
 PASS  6. Must-hold scenarios still HOLD with a tampered model: tamper detected (MODEL_INTEGRITY_FAILED); 14/14 must-hold scenarios held in DEGRADED_RULES_ONLY; degrade warnings logged: 1
 MISMATCH  G04: expected ALLOW/WARN, got HOLD ['R05_UNUSUAL_AMOUNT', 'M_AMOUNT_ABOVE_TYPICAL', 'M_NEW_PAYEE']
 known limitations (non-gating): 0/6 match the correct answer
-report: /Users/siva/MyApps/scam-payment-risk-check/evidence/eval-report.md
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -E "passed|failed|GATE|gate" /tmp/verify.txt
+report: /Users/user/MyApps/scam-payment-risk-check/evidence/eval-report.md
+host:scam-payment-risk-check user$ grep -E "passed|failed|GATE|gate" /tmp/verify.txt
 All checks passed!
 ======================= 516 passed, 1 warning in 11.45s ========================
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -i -E "gate|recall|hold|pass|fail|total" evidence/eval-report.md | head -20
+host:scam-payment-risk-check user$ grep -i -E "gate|recall|hold|pass|fail|total" evidence/eval-report.md | head -20
 - Overall: **PASS**
 ## Gate results
 | Gate | Result | Detail |
@@ -3431,7 +3431,7 @@ Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -i -E "gate|recall|hold|
 | S07 | mule_payee | yes | HOLD (must hold) | HOLD | 0.7911 | R01_MULE_PAYEE, R06_YOUNG_PAYEE_ACCOUNT, M_NEW_PAYEE, M_YOUNG_PAYEE_ACCOUNT | PASS |
 | S08 | mule_payee | yes | HOLD (must hold) | HOLD | 0.9141 | R01_MULE_PAYEE, R04_PAYEE_NAME_MISMATCH, R06_YOUNG_PAYEE_ACCOUNT, M_NEW_PAYEE, M_NAME_MISMATCH | PASS |
 | S09 | mule_payee | yes | HOLD (must hold) | HOLD | 0.0793 | R01_MULE_PAYEE | PASS |
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n -E "[0-9]+ (tests|passed|scenarios|checks|gates)|[0-9]+(\.[0-9]+)?%" README.md evidence/*.md
+host:scam-payment-risk-check user$ grep -n -E "[0-9]+ (tests|passed|scenarios|checks|gates)|[0-9]+(\.[0-9]+)?%" README.md evidence/*.md
 README.md:125:At the time of writing: 516 tests pass and all six gates pass. Details in
 README.md:138:  the friction gate (at most 10% of genuine held) has little headroom (1 of 12).
 evidence/decisions.md:32:- **Evaluation discipline.** Scenario labels were written before the first run and were not changed to make a gate pass; the gate limits (90% scams caught, 10% genuine held) are not tuned. Cases the system gets wrong live in a separate non-gating file and are reported on every run. One rule (R07, a young payee account with a high-value amount gives HOLD) was added test-first (scenario S19 failed before it and passes after) and its cost is accepted and visible: genuine high-value payments to accounts under 30 days old are held (case X06).
@@ -3445,9 +3445,9 @@ evidence/verify.md:13:| `pytest` | **516 passed**, 1 warning (Starlette's test c
 evidence/verify.md:22:| 2. Scams warned or held (need at least 90%) | 19/19 |
 evidence/verify.md:23:| 3. Genuine payments held (allow at most 10%) | 1/12 (8.3%): G04, a genuine car purchase from a new payee, scored 0.7284 against the 0.70 hold line |
 evidence/verify.md:44:- **Local:** `make verify` (above). Not part of it, but done by hand: the API driven with curl (scam, genuine, audit verify, live tamper of the audit file); `docker compose up --build` (image builds, container healthy and non-root, same results, audit chain survives a restart, UI served with its headers); the web UI driven in headless Chrome by a scratch script (25 of 25 checks, including HTML injection attempts rendering as text and no CSP violations); a clean-clone check of the README (see the end of this file).
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ grep -n -i -E "zero hallucination|bulletproof|production-ready|guarantee|fully secure|100% (safe|accurate)|seamless|robust|enterprise-grade" README.md evidence/*.md
+host:scam-payment-risk-check user$ grep -n -i -E "zero hallucination|bulletproof|production-ready|guarantee|fully secure|100% (safe|accurate)|seamless|robust|enterprise-grade" README.md evidence/*.md
 evidence/operate.md:42:Verify regularly. **Concurrency:** appends are serialised by a thread lock plus a POSIX `flock`, so several threads, or several processes on the same host and a local filesystem, can share one audit file (tested with 200 threaded appends and 4 processes x 25 appends). It is not safe across hosts or on network or shared filesystems. The single-file log is for the demo and local use only: production needs a proper store (WORM or object-lock storage, or a database with append-only guarantees) and the latest `record_hash` kept off the box. Removal of the newest records is not detectable from the file alone.
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ awk '/^```/{f=!f; next} f' README.md
+host:scam-payment-risk-check user$ awk '/^```/{f=!f; next} f' README.md
 docker compose up --build
 make setup      # creates .venv, installs pinned dependencies, installs the package and the CLI
 make verify     # ruff, format check, tests and the evaluation gate (see below)
@@ -3485,7 +3485,7 @@ curl -s -X POST localhost:8000/v1/assess -H 'content-type: application/json' -d 
   "policy_version": "2026.11.1",
   "latency_ms": 3.074
 }
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ SCAMCHECK_DEMO_MODE=1 SCAMCHECK_AUDIT_PATH=/tmp/ui-audit.jsonl make run-api
+host:scam-payment-risk-check user$ SCAMCHECK_DEMO_MODE=1 SCAMCHECK_AUDIT_PATH=/tmp/ui-audit.jsonl make run-api
 .venv/bin/uvicorn scamcheck.api:app --host 127.0.0.1 --port 8000
 INFO:     Started server process [47221]
 INFO:     Waiting for application startup.
@@ -3503,8 +3503,8 @@ INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [47221]
 
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ vi evidence/build-log.md
-Halasyas-MacBook-Pro:scam-payment-risk-check siva$ 
+host:scam-payment-risk-check user$ vi evidence/build-log.md
+host:scam-payment-risk-check user$ 
 
 
 
@@ -3621,3 +3621,7 @@ Ten more pairs I added (`J. Smith`, `J S`, `Smith, J`, `Smith, John Paul` vs `Jo
 Result: 516 to 534 tests, `make verify` clean, `evidence/eval-report.md` byte-identical (no scenario result changed; the scenarios have no surname-first name). `policy_version` was not bumped. Tests that encoded the old behaviour were changed because I changed the requirement.
 
 Open items that remain: 3 (no dedicated test for a typical amount of 0), 4 (no visible "Running..." state), 5 (transitive dependencies not pinned).
+
+---
+
+*Note: the hostname, username and home-directory paths in this log were redacted after the fact (`host`, `user`, `/Users/user`). Nothing else was changed: line numbers and all times are as originally recorded.*
